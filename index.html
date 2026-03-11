@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ADSCR Bilhar – Painel de Controlo</title>
+  <link rel="icon" href="logo.png" />
+
+  <!-- Bootstrap -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <style>
+    body {
+      background-color: #f3f4f6;
+    }
+
+    .equal-card {
+      min-height: 160px;
+    }
+
+    .queue-item.dragging {
+      opacity: 0.5;
+    }
+
+    .queue-item {
+      cursor: default;
+    }
+
+    .queue-item.draggable {
+      cursor: grab;
+    }
+
+    .queue-item.draggable:active {
+      cursor: grabbing;
+    }
+
+
+    .queue-next {
+      border-color: #198754 !important;
+      background: #e7f7ee;
+    }
+
+    .queue-next::after {
+      content: "Próximo";
+      margin-left: 8px;
+      font-size: 12px;
+      color: #198754;
+      font-weight: 600;
+    }
+
+    .queue-next .queue-timer {
+      margin-left: 8px;
+      font-size: 12px;
+      color: #198754;
+      font-weight: 600;
+    }
+
+    .quadro-name {
+      font-weight: 600;
+      color: #1f2937;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quadro-item {
+      height: 42px;
+      align-items: center;
+    }
+
+    .quadro-item select {
+      flex: 1;
+      min-height: 38px;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quadro-vs-row {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .quadro-scoreline .flex-grow-1 {
+      min-width: 0;
+    }
+
+    #homeTeamName,
+    #awayTeamName {
+      white-space: normal;
+      overflow: visible;
+    }
+
+    .sub-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 8px 10px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: #f8f9fa;
+    }
+
+    .sub-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .sub-field select {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sub-icon {
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      opacity: 0.85;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 12px;
+    }
+
+    .sub-icon.out::before {
+      content: "↓";
+      color: #dc3545;
+    }
+
+    .sub-icon.in::before {
+      content: "↑";
+      color: #198754;
+    }
+
+    .sub-grid.sub-reverted .sub-icon.out::before {
+      content: "↑";
+      color: #198754;
+    }
+
+    .sub-grid.sub-reverted .sub-icon.in::before {
+      content: "↓";
+      color: #dc3545;
+    }
+
+    .sub-grid.sub-pending {
+      background: #fff6e5;
+      border: 1px dashed #f0ad4e;
+    }
+
+    .sub-grid.sub-confirmed {
+      background: #e7f7ee;
+      border: 1px solid #b7e1c6;
+    }
+
+    .sub-grid.sub-reverted {
+      background: #fff3cd;
+      border: 1px solid #ffe69c;
+      opacity: 0.85;
+    }
+
+    .sub-grid .btn {
+      min-width: 96px;
+      white-space: nowrap;
+    }
+
+    .quadro-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .quadro-actions .btn {
+      min-width: 180px;
+      font-weight: 600;
+    }
+
+
+    .section-divider {
+      border-top: 1px dashed #d7dbe0;
+      margin: 16px 0;
+    }
+
+    .players-panel.players-collapsed .players-content {
+      display: none;
+    }
+
+    .main-columns {
+      align-items: stretch;
+    }
+
+    .left-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: 100%;
+    }
+
+    .quadro-game-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .quadro-game-label {
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quadro-game-actions {
+      display: inline-flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .right-stack {
+      height: 100%;
+    }
+
+    .right-stack .equal-card {
+      height: 100%;
+    }
+
+    .quadros-card {
+      height: 100%;
+    }
+
+    .history-card {
+      height: 100%;
+    }
+
+    .quadro-scoreline {
+      margin-top: 2.5rem !important;
+    }
+
+    .quadro-scoreline .team-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-body {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .history-body #history {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .history-card .card-body {
+      padding-bottom: 28px;
+    }
+
+    #openModeCard.open-collapsed .open-mode-body {
+      display: none;
+    }
+
+    #openModeCard.open-collapsed #openModeToggle {
+      background: #e9ecef;
+    }
+
+    .quadro-item {
+      cursor: default;
+    }
+
+    .quadro-item select {
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+      min-width: 0;
+    }
+
+    :root {
+      --vs-col-width: 160px;
+      --quadro-actions-width: 160px;
+    }
+
+    .quadro-scoreline {
+      min-height: 44px;
+      display: grid;
+      grid-template-columns: 1fr var(--vs-col-width) 1fr;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .quadro-scoreline > :nth-child(1) {
+      justify-self: start;
+    }
+
+    .quadro-scoreline > :nth-child(2) {
+      justify-self: center;
+    }
+
+    .quadro-scoreline > :nth-child(3) {
+      justify-self: end;
+    }
+
+    .score-center {
+      width: var(--vs-col-width);
+      justify-content: center;
+    }
+
+    .quadro-grid {
+      display: grid;
+      grid-template-columns: 1fr var(--vs-col-width) 1fr var(--quadro-actions-width);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .quadro-col {
+      min-width: 0;
+    }
+
+    .quadro-list {
+      min-height: 192px;
+      display: grid;
+      grid-template-rows: repeat(4, 42px);
+      gap: 8px;
+    }
+
+    .quadro-vs-list {
+      min-height: 192px;
+      display: grid;
+      grid-template-rows: repeat(4, 42px);
+      gap: 8px;
+    }
+
+    .quadro-actions-list {
+      min-height: 192px;
+      display: grid;
+      grid-template-rows: repeat(4, 42px);
+      gap: 8px;
+      align-items: center;
+    }
+
+    .quadro-action-row {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .quadro-action-btn {
+      padding: 6px 12px;
+      font-size: 13px;
+      line-height: 1.2;
+      min-width: 70px;
+    }
+
+    .substitution-block {
+      min-height: 112px;
+    }
+
+    .substitution-block.sub-hidden {
+      visibility: hidden;
+    }
+
+    .substitution-block.sub-disabled {
+      opacity: 0.45;
+      filter: grayscale(0.2);
+    }
+
+    @media (max-width: 992px) {
+      .quadro-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .quadro-vs-col {
+        display: none;
+      }
+
+      .quadro-actions-col {
+        display: none;
+      }
+
+      .quadro-list,
+      .quadro-vs-list,
+      .substitution-block {
+        min-height: 0;
+      }
+
+      #homeTeamName,
+      #awayTeamName {
+        max-width: 100%;
+      }
+    }
+
+    #queue {
+      min-height: 220px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    #history {
+      overflow-y: auto;
+    }
+
+    .section-title {
+      font-weight: 700;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 0.5rem;
+    }
+
+    .btn-clean {
+      --bs-btn-bg: initial !important;
+      --bs-btn-border-color: initial !important;
+      --bs-btn-hover-bg: initial !important;
+      --bs-btn-hover-border-color: initial !important;
+      --bs-btn-active-bg: initial !important;
+      --bs-btn-active-border-color: initial !important;
+    }
+
+    .score-flash-home {
+      animation: scoreFlashHome 1.6s ease-out;
+      background: #e7f7ee;
+      border-radius: 10px;
+      padding: 4px 8px;
+    }
+
+    .score-flash-away {
+      animation: scoreFlashAway 1.6s ease-out;
+      background: #fdeaea;
+      border-radius: 10px;
+      padding: 4px 8px;
+    }
+
+    @keyframes scoreFlashHome {
+      0% { box-shadow: 0 0 0 0 rgba(25,135,84,0.5); }
+      70% { box-shadow: 0 0 0 12px rgba(25,135,84,0); }
+      100% { box-shadow: 0 0 0 0 rgba(25,135,84,0); }
+    }
+
+    @keyframes scoreFlashAway {
+      0% { box-shadow: 0 0 0 0 rgba(220,53,69,0.5); }
+      70% { box-shadow: 0 0 0 12px rgba(220,53,69,0); }
+      100% { box-shadow: 0 0 0 0 rgba(220,53,69,0); }
+    }
+
+    .history-win-home {
+      background: #e7f7ee;
+      border-color: #bfe8d2 !important;
+    }
+
+    .history-win-away {
+      background: #fdeaea;
+      border-color: #f3c2c7 !important;
+    }
+
+    .history-standby {
+      background: #fff3cd;
+      border-color: #ffe69c !important;
+    }
+
+    .history-row {
+      padding: 6px 8px !important;
+      margin-bottom: 6px !important;
+    }
+
+    .history-row .history-name {
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+      vertical-align: bottom;
+    }
+
+    body.locked-after-end .card {
+      opacity: 0.65;
+    }
+
+    .history-meta {
+      border-style: dashed !important;
+      background: #f8f9fa;
+    }
+
+    .winner-home {
+      color: #198754;
+      font-weight: 700;
+    }
+
+    .winner-away {
+      color: #dc3545;
+      font-weight: 700;
+    }
+
+    .score-value {
+      min-width: 70px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: #f1f3f5;
+      display: inline-block;
+    }
+
+    .score-wrap {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .quadro-duplicate select {
+      border-color: #dc3545 !important;
+      background: #fdeaea;
+    }
+
+    .quadro-sub-in select {
+      border-color: #198754 !important;
+      background: #e7f7ee;
+    }
+
+    .quadro-sub-out select {
+      border-color: #dc3545 !important;
+      background: #fdeaea;
+    }
+
+    .quadro-sub-in .quadro-name,
+    .quadro-sub-out .quadro-name {
+      padding: 6px 10px;
+      border-radius: 8px;
+      display: inline-block;
+    }
+
+    .quadro-sub-in .quadro-name {
+      background: #e7f7ee;
+      color: #198754;
+    }
+
+    .quadro-sub-out .quadro-name {
+      background: #fdeaea;
+      color: #dc3545;
+    }
+
+  </style>
+</head>
+
+<body class="text-dark">
+  <div class="container-fluid px-4 py-4">
+
+    <!-- HEADER -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <img src="logo.png" alt="ADSCR" style="height:44px;width:auto" />
+      <h2 class="fw-bold m-0">ADSCR Painel de Controlo</h2>
+    </div>
+  </div>
+
+  <div id="reopenBanner" class="alert alert-success d-none">
+    Jogo reaberto.
+  </div>
+
+    <!-- TEAMS & SCORE -->
+    <div class="card shadow-sm mb-4" id="teamsCard">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+          <h4 class="section-title m-0">Equipas</h4>
+          <div class="d-flex align-items-center gap-3">
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" id="modeToggle">
+              <label class="form-check-label" for="modeToggle">Modo Open</label>
+            </div>
+            <button class="btn btn-success" id="resetAllBtn">🔄 Começar de Novo</button>
+          </div>
+        </div>
+        <div id="teamsForm">
+          <div class="d-flex gap-3 mb-2">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="teamsMode" id="teamsModePortal" value="portal" checked />
+              <label class="form-check-label" for="teamsModePortal">PortalBilhar</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="teamsMode" id="teamsModeManual" value="manual" />
+              <label class="form-check-label" for="teamsModeManual">Manual</label>
+            </div>
+          </div>
+
+          <div id="competitionBlock" class="mb-3">
+            <h6 class="fw-bold mb-2">Competição (PortalBilhar)</h6>
+            <input id="competitionSearch" class="form-control mb-2"
+                   list="competitionDatalist"
+                   placeholder="Pesquisar competição..." />
+            <datalist id="competitionDatalist"></datalist>
+            <select id="competitionSelect" class="form-select d-none">
+              <option value="">— escolher competição —</option>
+            </select>
+          </div>
+
+          <div class="row g-4">
+
+          <!-- HOME SIDE -->
+          <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <img id="homeTeamLogo" src="logo.png" alt="Locais" style="height:36px;width:36px;object-fit:contain" />
+              <h5 class="mb-0">Locais</h5>
+            </div>
+
+            <!-- PORTAL TEAM -->
+            <select id="homeTeamSelect" class="form-select mb-2"></select>
+
+            <!-- MANUAL TEAM -->
+            <input id="homeManualName" class="form-control form-control-lg mb-2 d-none" placeholder="Nome equipa locais" />
+            <textarea id="homeManualPlayers" class="form-control d-none" rows="4"
+              placeholder="Jogadores locais (um por linha)"></textarea>
+
+            <!-- PLAYER LIST -->
+            <div id="homePlayersPanel" class="players-panel players-collapsed mt-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold m-0">Jogadores <span id="homePlayersCount" class="text-muted small"></span></h6>
+                <button class="btn btn-sm btn-outline-secondary players-toggle" onclick="editPlayers('home')">
+                  ✏️ Editar jogadores
+                </button>
+              </div>
+              <div class="players-content mt-2">
+                <ul id="homePlayersList" class="list-group small"></ul>
+                <button id="saveHomePlayersBtn"
+                        class="btn btn-sm btn-primary mt-2 d-none"
+                        onclick="saveEditedPlayers('home')">
+                  💾 Guardar
+                </button>
+                <textarea id="homePlayerEditor" class="form-control d-none mt-2" rows="6"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- AWAY SIDE -->
+          <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <img id="awayTeamLogo" src="logo.png" alt="Visitantes" style="height:36px;width:36px;object-fit:contain" />
+              <h5 class="mb-0">Visitantes</h5>
+            </div>
+
+            <!-- PORTAL TEAM -->
+            <select id="awayTeamSelect" class="form-select mb-2"></select>
+
+            <!-- MANUAL TEAM -->
+            <input id="awayManualName" class="form-control form-control-lg mb-2 d-none" placeholder="Nome equipa visitantes" />
+            <textarea id="awayManualPlayers" class="form-control d-none" rows="4"
+              placeholder="Jogadores visitantes (um por linha)"></textarea>
+
+            <!-- PLAYER LIST -->
+            <div id="awayPlayersPanel" class="players-panel players-collapsed mt-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold m-0">Jogadores <span id="awayPlayersCount" class="text-muted small"></span></h6>
+                <button class="btn btn-sm btn-outline-secondary players-toggle" onclick="editPlayers('away')">
+                  ✏️ Editar jogadores
+                </button>
+              </div>
+              <div class="players-content mt-2">
+                <ul id="awayPlayersList" class="list-group small"></ul>
+                <button id="saveAwayPlayersBtn"
+                        class="btn btn-sm btn-primary mt-2 d-none"
+                        onclick="saveEditedPlayers('away')">
+                  💾 Guardar
+                </button>
+                <textarea id="awayPlayerEditor" class="form-control d-none mt-2" rows="6"></textarea>
+              </div>
+            </div>
+          </div>
+
+          </div>
+        </div>
+
+        <hr />
+      </div>
+    </div>
+
+    <!-- MODO OPEN -->
+    <div class="card shadow-sm mb-4 d-none" id="openModeCard">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <h4 class="section-title m-0">Modo Open – Jogadores</h4>
+          <button class="btn btn-outline-secondary btn-sm" id="openModeToggle" type="button">Minimizar</button>
+        </div>
+
+        <div class="open-mode-body">
+          <p class="text-muted small">
+            Introduz os jogadores (um por linha). Eles ficarão disponíveis em ambos os lados da fila de jogos
+            para poderem jogar todos contra todos.
+          </p>
+
+          <textarea id="openPlayersInput" class="form-control" rows="6"
+            placeholder="Um jogador por linha..."></textarea>
+
+          <button class="btn btn-primary mt-2" onclick="saveOpenPlayers()">Guardar jogadores</button>
+
+          <h6 class="mt-3 fw-bold">Jogadores atuais</h6>
+          <ul id="openPlayersList" class="list-group small"></ul>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="row g-4 main-columns align-items-stretch">
+      <div class="col-lg-8 left-stack">
+        <!-- QUADROS -->
+        <div class="card shadow-sm mb-4 quadros-card" id="quadrosCard">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+              <h4 class="section-title d-flex align-items-center gap-2 m-0">
+                Classificação e Gestão de Quadros
+                <span id="quadroLockBadge" class="badge text-bg-secondary">Em edição</span>
+              </h4>
+            </div>
+
+            <div class="quadro-scoreline mb-3">
+              <div class="d-flex align-items-center gap-2 flex-grow-1">
+                <img id="homeScoreLogo" src="logo.png" alt="Equipa A" style="height:28px;width:28px;object-fit:contain" />
+                <h4 id="homeTeamName" class="m-0 team-name">Equipa A</h4>
+              </div>
+
+              <div class="d-flex align-items-center gap-2 score-center">
+                <span id="homeScoreWrap" class="score-wrap">
+                  <span id="homeScore" class="score-value">0</span>
+                </span>
+                <span class="fw-bold">-</span>
+                <span id="awayScoreWrap" class="score-wrap">
+                  <span id="awayScore" class="score-value">0</span>
+                </span>
+              </div>
+
+              <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
+                <h4 id="awayTeamName" class="m-0 team-name">Equipa B</h4>
+                <img id="awayScoreLogo" src="logo.png" alt="Equipa B" style="height:28px;width:28px;object-fit:contain" />
+              </div>
+            </div>
+        <p class="text-muted small mb-3">Seleciona 4 jogadores por equipa para gerar os quadros. Carrega em bloquear para continuar.</p>
+
+        <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+          <button class="btn btn-outline-secondary quadro-btn" id="quadroBtn1" data-quadro="1">Quadro 1</button>
+          <button class="btn btn-outline-secondary quadro-btn" id="quadroBtn2" data-quadro="2">Quadro 2</button>
+          <button class="btn btn-outline-secondary quadro-btn" id="quadroBtn3" data-quadro="3">Quadro 3</button>
+          <button class="btn btn-outline-secondary quadro-btn" id="quadroBtn4" data-quadro="4">Quadro 4</button>
+        </div>
+
+        <div class="quadro-grid">
+          <div class="quadro-col">
+            <div id="quadroHomeList" class="d-grid gap-2 quadro-list">
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="home" data-index="0">
+                <span class="badge text-bg-secondary" id="quadroHomeBadge1">1</span>
+                <select id="quadroHome1" class="form-select"></select>
+                <span id="quadroHome1Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="home" data-index="1">
+                <span class="badge text-bg-secondary" id="quadroHomeBadge2">2</span>
+                <select id="quadroHome2" class="form-select"></select>
+                <span id="quadroHome2Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="home" data-index="2">
+                <span class="badge text-bg-secondary" id="quadroHomeBadge3">3</span>
+                <select id="quadroHome3" class="form-select"></select>
+                <span id="quadroHome3Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="home" data-index="3">
+                <span class="badge text-bg-secondary" id="quadroHomeBadge4">4</span>
+                <select id="quadroHome4" class="form-select"></select>
+                <span id="quadroHome4Label" class="quadro-name d-none"></span>
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+          </div>
+          <div class="quadro-vs-col text-center">
+            <div class="quadro-vs-list">
+              <div class="quadro-vs-row fw-bold text-muted">VS</div>
+              <div class="quadro-vs-row fw-bold text-muted">VS</div>
+              <div class="quadro-vs-row fw-bold text-muted">VS</div>
+              <div class="quadro-vs-row fw-bold text-muted">VS</div>
+            </div>
+          </div>
+          <div class="quadro-col">
+            <div id="quadroAwayList" class="d-grid gap-2 quadro-list">
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="away" data-index="0">
+                <span class="badge text-bg-secondary" id="quadroAwayBadge1">1</span>
+                <select id="quadroAway1" class="form-select"></select>
+                <span id="quadroAway1Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="away" data-index="1">
+                <span class="badge text-bg-secondary" id="quadroAwayBadge2">2</span>
+                <select id="quadroAway2" class="form-select"></select>
+                <span id="quadroAway2Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="away" data-index="2">
+                <span class="badge text-bg-secondary" id="quadroAwayBadge3">3</span>
+                <select id="quadroAway3" class="form-select"></select>
+                <span id="quadroAway3Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="away" data-index="3">
+                <span class="badge text-bg-secondary" id="quadroAwayBadge4">4</span>
+                <select id="quadroAway4" class="form-select"></select>
+                <span id="quadroAway4Label" class="quadro-name d-none"></span>
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+          </div>
+          <div class="quadro-actions-col">
+            <div class="quadro-actions-list">
+              <div class="quadro-action-row">
+                <button class="btn btn-outline-primary btn-sm quadro-action-btn" id="quadroM1_1" onclick="sendQuadroRowToTable(1, 1)">Mesa 1</button>
+                <button class="btn btn-outline-primary btn-sm quadro-action-btn" id="quadroM2_1" onclick="sendQuadroRowToTable(1, 2)">Mesa 2</button>
+              </div>
+              <div class="quadro-action-row">
+                <button class="btn btn-outline-primary btn-sm quadro-action-btn" id="quadroM1_2" onclick="sendQuadroRowToTable(2, 1)">Mesa 1</button>
+                <button class="btn btn-outline-primary btn-sm quadro-action-btn" id="quadroM2_2" onclick="sendQuadroRowToTable(2, 2)">Mesa 2</button>
+              </div>
+              <div class="quadro-action-row">
+                <button class="btn btn-outline-primary btn-sm quadro-action-btn" id="quadroM1_3" onclick="sendQuadroRowToTable(3, 1)">Mesa 1</button>
+                <button class="btn btn-outline-primary btn-sm quadro-action-btn" id="quadroM2_3" onclick="sendQuadroRowToTable(3, 2)">Mesa 2</button>
+              </div>
+              <div class="quadro-action-row">
+                <button class="btn btn-outline-primary btn-sm quadro-action-btn" id="quadroM1_4" onclick="sendQuadroRowToTable(4, 1)">Mesa 1</button>
+                <button class="btn btn-outline-primary btn-sm quadro-action-btn" id="quadroM2_4" onclick="sendQuadroRowToTable(4, 2)">Mesa 2</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="quadro-actions">
+          <button class="btn btn-primary" id="addQuadroBtn">Jogar quadro</button>
+          <div id="subsWarning" class="alert alert-warning py-2 mb-0 d-none">
+            Existem substituições iniciadas que não foram confirmadas.
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="substitution-block">
+              <div class="fw-bold small text-muted mb-1">Substituições</div>
+              <div class="d-grid gap-2">
+                <div class="sub-grid" id="homeSubRow1">
+                  <span class="sub-field">
+                    <span class="sub-icon out"></span>
+                    <select id="homeSubOut1" class="form-select form-select-sm"></select>
+                  </span>
+                  <span class="sub-field">
+                    <span class="sub-icon in"></span>
+                    <select id="homeSubIn1" class="form-select form-select-sm"></select>
+                  </span>
+                  <button class="btn btn-sm btn-outline-success" id="homeSubConfirm1" type="button">Confirmar</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="homeSubRevert1" type="button">Reverter</button>
+                </div>
+                <div class="sub-grid" id="homeSubRow2">
+                  <span class="sub-field">
+                    <span class="sub-icon out"></span>
+                    <select id="homeSubOut2" class="form-select form-select-sm"></select>
+                  </span>
+                  <span class="sub-field">
+                    <span class="sub-icon in"></span>
+                    <select id="homeSubIn2" class="form-select form-select-sm"></select>
+                  </span>
+                  <button class="btn btn-sm btn-outline-success" id="homeSubConfirm2" type="button">Confirmar</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="homeSubRevert2" type="button">Reverter</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="substitution-block">
+              <div class="fw-bold small text-muted mb-1">Substituições</div>
+              <div class="d-grid gap-2">
+                <div class="sub-grid" id="awaySubRow1">
+                  <span class="sub-field">
+                    <span class="sub-icon out"></span>
+                    <select id="awaySubOut1" class="form-select form-select-sm"></select>
+                  </span>
+                  <span class="sub-field">
+                    <span class="sub-icon in"></span>
+                    <select id="awaySubIn1" class="form-select form-select-sm"></select>
+                  </span>
+                  <button class="btn btn-sm btn-outline-success" id="awaySubConfirm1" type="button">Confirmar</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="awaySubRevert1" type="button">Reverter</button>
+                </div>
+                <div class="sub-grid" id="awaySubRow2">
+                  <span class="sub-field">
+                    <span class="sub-icon out"></span>
+                    <select id="awaySubOut2" class="form-select form-select-sm"></select>
+                  </span>
+                  <span class="sub-field">
+                    <span class="sub-icon in"></span>
+                    <select id="awaySubIn2" class="form-select form-select-sm"></select>
+                  </span>
+                  <button class="btn btn-sm btn-outline-success" id="awaySubConfirm2" type="button">Confirmar</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="awaySubRevert2" type="button">Reverter</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+          </div>
+        </div>
+
+        <!-- TABLES -->
+        <div class="row g-4 mb-4" id="tablesRow">
+
+          <!-- TABLE 1 -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm equal-card">
+              <div class="card-body">
+
+            <div class="d-flex justify-content-between mb-2">
+              <h5 class="fw-bold">Mesa 1</h5>
+              <div id="table1Controls">
+                <button class="btn btn-sm btn-success btn-clean" onclick="startTimer(1)">▶️</button>
+                <button class="btn btn-sm btn-danger btn-clean" onclick="clearTable(1)">❌</button>
+              </div>
+            </div>
+
+            <div id="table1Game" class="border rounded p-2 text-center text-muted">Sem jogo</div>
+
+            <div id="table1Scoring" class="d-flex justify-content-center align-items-center gap-2 mt-2">
+              <div id="table1ScoreControls" class="d-flex align-items-center gap-2">
+                <span id="table1Score" class="fw-bold fs-5">0 - 0</span>
+                <button class="btn btn-sm btn-primary" onclick="addPoint(1,'home')">+ Local</button>
+                <button class="btn btn-sm btn-primary" onclick="addPoint(1,'away')">+ Visitante</button>
+                <button class="btn btn-sm btn-secondary" onclick="undoPoint(1)">↩</button>
+              </div>
+              <div id="table1Finish" class="d-flex gap-2">
+                <button class="btn btn-sm btn-success" onclick="finishGame(1,'home')">Locais venceram</button>
+                <button class="btn btn-sm btn-danger" onclick="finishGame(1,'away')">Visitantes venceram</button>
+              </div>
+            </div>
+
+            <div id="timer1" class="mt-3 fw-bold text-center">⏱ 00:00</div>
+
+            <!-- DROP TARGET (Open only) -->
+            <div class="mt-3 border rounded p-3 text-center bg-light table-drop"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondragover="allowDrop(event)"
+                 ondrop="dropGameOnTable(event, 1)">
+              Arraste jogo da fila para aqui
+            </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE 2 -->
+          <div class="col-lg-6">
+            <div class="card shadow-sm equal-card">
+              <div class="card-body">
+
+            <div class="d-flex justify-content-between mb-2">
+              <h5 class="fw-bold">Mesa 2</h5>
+              <div id="table2Controls">
+                <button class="btn btn-sm btn-success btn-clean" onclick="startTimer(2)">▶️</button>
+                <button class="btn btn-sm btn-danger btn-clean" onclick="clearTable(2)">❌</button>
+              </div>
+            </div>
+
+            <div id="table2Game" class="border rounded p-2 text-center text-muted">Sem jogo</div>
+
+            <div id="table2Scoring" class="d-flex justify-content-center align-items-center gap-2 mt-2">
+              <div id="table2ScoreControls" class="d-flex align-items-center gap-2">
+                <span id="table2Score" class="fw-bold fs-5">0 - 0</span>
+                <button class="btn btn-sm btn-primary" onclick="addPoint(2,'home')">+ Local</button>
+                <button class="btn btn-sm btn-primary" onclick="addPoint(2,'away')">+ Visitante</button>
+                <button class="btn btn-sm btn-secondary" onclick="undoPoint(2)">↩</button>
+              </div>
+              <div id="table2Finish" class="d-flex gap-2">
+                <button class="btn btn-sm btn-success" onclick="finishGame(2,'home')">Locais venceram</button>
+                <button class="btn btn-sm btn-danger" onclick="finishGame(2,'away')">Visitantes venceram</button>
+              </div>
+            </div>
+
+            <div id="timer2" class="mt-3 fw-bold text-center">⏱ 00:00</div>
+
+            <!-- DROP TARGET (Open only) -->
+            <div class="mt-3 border rounded p-3 text-center bg-light table-drop"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondragover="allowDrop(event)"
+                 ondrop="dropGameOnTable(event, 2)">
+              Arraste jogo da fila para aqui
+            </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- QUEUE (OPEN MODE) -->
+        <div class="card shadow-sm equal-card queue-card d-none" id="queueCard">
+          <div class="card-body">
+
+            <h4 class="section-title">Fila de Jogos</h4>
+
+            <!-- ADD GAME (Open only) -->
+            <div class="row g-2 mb-3" id="queueAddRow">
+              <div class="col-5">
+                <label class="form-label">Jogador Local</label>
+                <select id="queueHomePlayer" class="form-select"></select>
+              </div>
+
+              <div class="col-5">
+                <label class="form-label">Jogador Visitante</label>
+                <select id="queueAwayPlayer" class="form-select"></select>
+              </div>
+
+              <div class="col-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="addGameToQueue()">➕</button>
+              </div>
+            </div>
+
+            <div id="queue"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORICO -->
+      <div class="col-lg-4 right-stack">
+        <div class="card shadow-sm equal-card history-card">
+          <div class="card-body history-body">
+            <h4 class="section-title">Histórico</h4>
+            <div id="history" class="small"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- TOAST -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="appToast" class="toast text-bg-primary border-0">
+      <div class="toast-body" id="toastBody"></div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS + App JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>

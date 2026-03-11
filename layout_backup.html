@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ADSCR Bilhar – Painel de Controlo</title>
+  <link rel="icon" href="logo.png" />
+
+  <!-- Bootstrap -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <style>
+    body {
+      background-color: #f3f4f6;
+    }
+
+    .equal-card {
+      min-height: 160px;
+    }
+
+    .queue-item.dragging {
+      opacity: 0.5;
+    }
+
+    .queue-item {
+      cursor: default;
+    }
+
+    .queue-item.draggable {
+      cursor: grab;
+    }
+
+    .queue-item.draggable:active {
+      cursor: grabbing;
+    }
+
+
+    .queue-next {
+      border-color: #198754 !important;
+      background: #e7f7ee;
+    }
+
+    .queue-next::after {
+      content: "Próximo";
+      margin-left: 8px;
+      font-size: 12px;
+      color: #198754;
+      font-weight: 600;
+    }
+
+    .queue-next .queue-timer {
+      margin-left: 8px;
+      font-size: 12px;
+      color: #198754;
+      font-weight: 600;
+    }
+
+    .quadro-name {
+      font-weight: 600;
+      color: #1f2937;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quadro-item {
+      min-height: 42px;
+      align-items: center;
+    }
+
+    .quadro-item select {
+      flex: 1;
+      min-height: 38px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quadro-vs-row {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sub-grid {
+      display: grid;
+      grid-template-columns: auto minmax(140px, 1fr) auto minmax(140px, 1fr) auto auto;
+      align-items: center;
+      gap: 8px 10px;
+    }
+
+    .quadro-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .quadro-actions .btn {
+      min-width: 180px;
+      font-weight: 600;
+    }
+
+    .section-divider {
+      border-top: 1px dashed #d7dbe0;
+      margin: 16px 0;
+    }
+
+    .quadro-item.dragging {
+      opacity: 0.6;
+      outline: 2px dashed #0d6efd;
+      outline-offset: 2px;
+      background: #eef5ff;
+    }
+
+    .quadro-item.drag-over {
+      border: 2px solid #0d6efd;
+      border-radius: 8px;
+      background: #f5f9ff;
+    }
+
+    .quadro-item.drag-over::after {
+      content: "Largar aqui";
+      margin-left: auto;
+      font-size: 12px;
+      color: #0d6efd;
+      font-weight: 600;
+    }
+
+    .quadro-shift {
+      animation: quadroShift 0.2s ease;
+    }
+
+    @keyframes quadroShift {
+      0% { transform: translateY(-4px); }
+      100% { transform: translateY(0); }
+    }
+
+    .quadro-item {
+      cursor: default;
+    }
+
+    .quadro-item[data-side="away"] {
+      cursor: grab;
+    }
+
+    .quadro-item[data-side="away"]:active {
+      cursor: grabbing;
+    }
+
+    .quadro-item select {
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    body.quadro-dragging[data-quadro-side="home"] .quadro-item[data-side="home"],
+    body.quadro-dragging[data-quadro-side="away"] .quadro-item[data-side="away"] {
+      border: 2px dashed #9bbcf7;
+      border-radius: 8px;
+      background: #f7fbff;
+    }
+
+    body.quadro-dragging[data-quadro-side="home"] .quadro-item[data-side="away"],
+    body.quadro-dragging[data-quadro-side="away"] .quadro-item[data-side="home"] {
+      opacity: 0.4;
+    }
+
+    #queue {
+      min-height: 220px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    #history {
+      max-height: none;
+      overflow-y: visible;
+    }
+
+    .section-title {
+      font-weight: 700;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 0.5rem;
+    }
+
+    .btn-clean {
+      --bs-btn-bg: initial !important;
+      --bs-btn-border-color: initial !important;
+      --bs-btn-hover-bg: initial !important;
+      --bs-btn-hover-border-color: initial !important;
+      --bs-btn-active-bg: initial !important;
+      --bs-btn-active-border-color: initial !important;
+    }
+
+    .score-flash-home {
+      animation: scoreFlashHome 1.6s ease-out;
+      background: #e7f7ee;
+      border-radius: 10px;
+      padding: 4px 8px;
+    }
+
+    .score-flash-away {
+      animation: scoreFlashAway 1.6s ease-out;
+      background: #fdeaea;
+      border-radius: 10px;
+      padding: 4px 8px;
+    }
+
+    @keyframes scoreFlashHome {
+      0% { box-shadow: 0 0 0 0 rgba(25,135,84,0.5); }
+      70% { box-shadow: 0 0 0 12px rgba(25,135,84,0); }
+      100% { box-shadow: 0 0 0 0 rgba(25,135,84,0); }
+    }
+
+    @keyframes scoreFlashAway {
+      0% { box-shadow: 0 0 0 0 rgba(220,53,69,0.5); }
+      70% { box-shadow: 0 0 0 12px rgba(220,53,69,0); }
+      100% { box-shadow: 0 0 0 0 rgba(220,53,69,0); }
+    }
+
+    .history-win-home {
+      background: #e7f7ee;
+      border-color: #bfe8d2 !important;
+    }
+
+    .history-win-away {
+      background: #fdeaea;
+      border-color: #f3c2c7 !important;
+    }
+
+    .history-standby {
+      background: #fff3cd;
+      border-color: #ffe69c !important;
+    }
+
+    .history-row {
+      padding: 6px 8px !important;
+      margin-bottom: 6px !important;
+    }
+
+    .winner-home {
+      color: #198754;
+      font-weight: 700;
+    }
+
+    .winner-away {
+      color: #dc3545;
+      font-weight: 700;
+    }
+
+    .score-value {
+      min-width: 70px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: #f1f3f5;
+      display: inline-block;
+    }
+
+    .quadro-duplicate select {
+      border-color: #dc3545 !important;
+      background: #fdeaea;
+    }
+
+    .quadro-sub-in select {
+      border-color: #198754 !important;
+      background: #e7f7ee;
+    }
+
+  </style>
+</head>
+
+<body class="text-dark">
+  <div class="container py-4">
+
+    <!-- HEADER -->
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <img src="logo.png" alt="ADSCR" style="height:44px;width:auto" />
+      <h2 class="fw-bold m-0">ADSCR Painel de Controlo</h2>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="modeToggle">
+        <label class="form-check-label" for="modeToggle">Modo Open</label>
+      </div>
+      <button class="btn btn-danger" id="resetAllBtn">🔄 Terminar Jogo</button>
+    </div>
+  </div>
+
+  <div id="reopenBanner" class="alert alert-success d-none">
+    Jogo reaberto.
+  </div>
+
+    <!-- COMPETITION SELECTION -->
+    <div class="card shadow-sm mb-4" id="competitionCard">
+      <div class="card-body">
+        <h4 class="section-title">Competição (PortalBilhar)</h4>
+        <input id="competitionSearch" class="form-control mb-2"
+               list="competitionDatalist"
+               placeholder="Pesquisar competição..." />
+        <datalist id="competitionDatalist"></datalist>
+        <select id="competitionSelect" class="form-select d-none">
+          <option value="">— escolher competição —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- TEAMS & SCORE -->
+    <div class="card shadow-sm mb-4" id="teamsCard">
+      <div class="card-body">
+        <h4 class="section-title">Equipas</h4>
+
+        <div class="row g-4">
+
+          <!-- HOME SIDE -->
+          <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <img id="homeTeamLogo" src="logo.png" alt="Locais" style="height:36px;width:36px;object-fit:contain" />
+              <h5 class="mb-0">Locais</h5>
+            </div>
+
+            <!-- MODE -->
+            <div class="d-flex gap-3 mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="homeMode" id="homeModePortal" value="portal" checked />
+                <label class="form-check-label" for="homeModePortal">PortalBilhar</label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="homeMode" id="homeModeLocal" value="local" />
+                <label class="form-check-label" for="homeModeLocal">Grupo Local</label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="homeMode" id="homeModeManual" value="manual" />
+                <label class="form-check-label" for="homeModeManual">Manual</label>
+              </div>
+            </div>
+
+            <!-- PORTAL TEAM -->
+            <input id="homeTeamSearch" class="form-control mb-2"
+                   list="homeTeamDatalist"
+                   placeholder="Pesquisar equipa..." />
+            <datalist id="homeTeamDatalist"></datalist>
+            <select id="homeTeamSelect" class="form-select mb-2 d-none"></select>
+
+            <!-- LOCAL GROUP -->
+            <select id="homeLocalSelect" class="form-select mb-2 d-none">
+              <option value="">— escolher grupo —</option>
+              <option value="ValadaA">Valada A</option>
+              <option value="ValadaB">Valada B</option>
+            </select>
+
+            <!-- MANUAL TEAM -->
+            <input id="homeManualName" class="form-control form-control-lg mb-2 d-none" placeholder="Nome equipa locais" />
+            <textarea id="homeManualPlayers" class="form-control d-none" rows="4"
+              placeholder="Jogadores locais (um por linha)"></textarea>
+
+            <!-- PLAYER LIST -->
+            <h6 class="mt-3 fw-bold">Jogadores</h6>
+            <ul id="homePlayersList" class="list-group small"></ul>
+
+            <button class="btn btn-sm btn-outline-secondary mt-2" onclick="editPlayers('home')">
+              ✏️ Editar jogadores
+            </button>
+
+            <button id="saveHomePlayersBtn"
+                    class="btn btn-sm btn-primary mt-2 d-none"
+                    onclick="saveEditedPlayers('home')">
+              💾 Guardar
+            </button>
+
+            <textarea id="homePlayerEditor" class="form-control d-none mt-2" rows="6"></textarea>
+          </div>
+
+          <!-- AWAY SIDE -->
+          <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <img id="awayTeamLogo" src="logo.png" alt="Visitantes" style="height:36px;width:36px;object-fit:contain" />
+              <h5 class="mb-0">Visitantes</h5>
+            </div>
+
+            <!-- MODE -->
+            <div class="d-flex gap-3 mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="awayMode" id="awayModePortal" value="portal" checked />
+                <label class="form-check-label" for="awayModePortal">PortalBilhar</label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="awayMode" id="awayModeLocal" value="local" />
+                <label class="form-check-label" for="awayModeLocal">Grupo Local</label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="awayMode" id="awayModeManual" value="manual" />
+                <label class="form-check-label" for="awayModeManual">Manual</label>
+              </div>
+            </div>
+
+            <!-- PORTAL TEAM -->
+            <input id="awayTeamSearch" class="form-control mb-2"
+                   list="awayTeamDatalist"
+                   placeholder="Pesquisar equipa..." />
+            <datalist id="awayTeamDatalist"></datalist>
+            <select id="awayTeamSelect" class="form-select mb-2 d-none"></select>
+
+            <!-- LOCAL GROUP -->
+            <select id="awayLocalSelect" class="form-select mb-2 d-none">
+              <option value="">— escolher grupo —</option>
+              <option value="ValadaA">Valada A</option>
+              <option value="ValadaB">Valada B</option>
+            </select>
+
+            <!-- MANUAL TEAM -->
+            <input id="awayManualName" class="form-control form-control-lg mb-2 d-none" placeholder="Nome equipa visitantes" />
+            <textarea id="awayManualPlayers" class="form-control d-none" rows="4"
+              placeholder="Jogadores visitantes (um por linha)"></textarea>
+
+            <!-- PLAYER LIST -->
+            <h6 class="mt-3 fw-bold">Jogadores</h6>
+            <ul id="awayPlayersList" class="list-group small"></ul>
+
+            <button class="btn btn-sm btn-outline-secondary mt-2" onclick="editPlayers('away')">
+              ✏️ Editar jogadores
+            </button>
+
+            <button id="saveAwayPlayersBtn"
+                    class="btn btn-sm btn-primary mt-2 d-none"
+                    onclick="saveEditedPlayers('away')">
+              💾 Guardar
+            </button>
+
+            <textarea id="awayPlayerEditor" class="form-control d-none mt-2" rows="6"></textarea>
+          </div>
+
+        </div>
+
+        <hr />
+      </div>
+    </div>
+
+    <!-- MODO OPEN -->
+    <div class="card shadow-sm mb-4 d-none" id="openModeCard">
+      <div class="card-body">
+        <h4 class="section-title">Modo Open – Jogadores</h4>
+
+        <p class="text-muted small">
+          Introduz os jogadores (um por linha). Eles ficarão disponíveis em ambos os lados da fila de jogos
+          para poderem jogar todos contra todos.
+        </p>
+
+        <textarea id="openPlayersInput" class="form-control" rows="6"
+          placeholder="Um jogador por linha..."></textarea>
+
+        <button class="btn btn-primary mt-2" onclick="saveOpenPlayers()">Guardar jogadores</button>
+
+        <h6 class="mt-3 fw-bold">Jogadores atuais</h6>
+        <ul id="openPlayersList" class="list-group small"></ul>
+      </div>
+    </div>
+
+
+    <!-- QUADROS -->
+    <div class="card shadow-sm mb-4" id="quadrosCard">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <h4 class="section-title d-flex align-items-center gap-2 m-0">
+            Gestão de Quadros
+            <span id="quadroLockBadge" class="badge text-bg-secondary">Em edição</span>
+          </h4>
+          <button class="btn btn-outline-warning" id="lockQuadro1Btn">Bloquear Quadro</button>
+        </div>
+        <p class="text-muted small mb-3">Seleciona 4 jogadores por equipa para gerar os quadros. Carrega em bloquear para continuar.</p>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button class="btn btn-outline-secondary quadro-btn" id="quadroBtn1" data-quadro="1">Quadro 1</button>
+          <button class="btn btn-outline-secondary quadro-btn" id="quadroBtn2" data-quadro="2">Quadro 2</button>
+          <button class="btn btn-outline-secondary quadro-btn" id="quadroBtn3" data-quadro="3">Quadro 3</button>
+          <button class="btn btn-outline-secondary quadro-btn" id="quadroBtn4" data-quadro="4">Quadro 4</button>
+        </div>
+
+        <div class="row g-4 align-items-start">
+          <div class="col-md-5">
+            <h6 class="fw-bold">Locais</h6>
+            <div id="quadroHomeList" class="d-grid gap-2">
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="home" data-index="0">
+                <span class="badge text-bg-secondary">1</span>
+                <select id="quadroHome1" class="form-select"></select>
+                <span id="quadroHome1Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="home" data-index="1">
+                <span class="badge text-bg-secondary">2</span>
+                <select id="quadroHome2" class="form-select"></select>
+                <span id="quadroHome2Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="home" data-index="2">
+                <span class="badge text-bg-secondary">3</span>
+                <select id="quadroHome3" class="form-select"></select>
+                <span id="quadroHome3Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" data-side="home" data-index="3">
+                <span class="badge text-bg-secondary">4</span>
+                <select id="quadroHome4" class="form-select"></select>
+                <span id="quadroHome4Label" class="quadro-name d-none"></span>
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <div class="mt-3">
+              <div class="fw-bold small text-muted mb-1">Substituições</div>
+              <div class="d-grid gap-2">
+                <div class="sub-grid">
+                  <span class="small text-muted">Sai</span>
+                  <select id="homeSubOut1" class="form-select form-select-sm"></select>
+                  <span class="small text-muted">Entra</span>
+                  <select id="homeSubIn1" class="form-select form-select-sm"></select>
+                  <button class="btn btn-sm btn-outline-success" id="homeSubConfirm1" type="button">Confirmar</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="homeSubRevert1" type="button">Reverter</button>
+                </div>
+                <div class="sub-grid">
+                  <span class="small text-muted">Sai</span>
+                  <select id="homeSubOut2" class="form-select form-select-sm"></select>
+                  <span class="small text-muted">Entra</span>
+                  <select id="homeSubIn2" class="form-select form-select-sm"></select>
+                  <button class="btn btn-sm btn-outline-success" id="homeSubConfirm2" type="button">Confirmar</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="homeSubRevert2" type="button">Reverter</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-2 text-center">
+            <h6 class="fw-bold">&nbsp;</h6>
+            <div class="d-grid gap-2">
+              <div class="quadro-vs-row fw-bold text-muted">VS</div>
+              <div class="quadro-vs-row fw-bold text-muted">VS</div>
+              <div class="quadro-vs-row fw-bold text-muted">VS</div>
+              <div class="quadro-vs-row fw-bold text-muted">VS</div>
+            </div>
+          </div>
+          <div class="col-md-5">
+            <h6 class="fw-bold">Visitantes</h6>
+            <div id="quadroAwayList" class="d-grid gap-2">
+              <div class="d-flex align-items-center gap-2 quadro-item" draggable="true" data-side="away" data-index="0">
+                <span class="badge text-bg-secondary">1</span>
+                <select id="quadroAway1" class="form-select"></select>
+                <span id="quadroAway1Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" draggable="true" data-side="away" data-index="1">
+                <span class="badge text-bg-secondary">2</span>
+                <select id="quadroAway2" class="form-select"></select>
+                <span id="quadroAway2Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" draggable="true" data-side="away" data-index="2">
+                <span class="badge text-bg-secondary">3</span>
+                <select id="quadroAway3" class="form-select"></select>
+                <span id="quadroAway3Label" class="quadro-name d-none"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2 quadro-item" draggable="true" data-side="away" data-index="3">
+                <span class="badge text-bg-secondary">4</span>
+                <select id="quadroAway4" class="form-select"></select>
+                <span id="quadroAway4Label" class="quadro-name d-none"></span>
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <div class="mt-3">
+              <div class="fw-bold small text-muted mb-1">Substituições</div>
+              <div class="d-grid gap-2">
+                <div class="sub-grid">
+                  <span class="small text-muted">Sai</span>
+                  <select id="awaySubOut1" class="form-select form-select-sm"></select>
+                  <span class="small text-muted">Entra</span>
+                  <select id="awaySubIn1" class="form-select form-select-sm"></select>
+                  <button class="btn btn-sm btn-outline-success" id="awaySubConfirm1" type="button">Confirmar</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="awaySubRevert1" type="button">Reverter</button>
+                </div>
+                <div class="sub-grid">
+                  <span class="small text-muted">Sai</span>
+                  <select id="awaySubOut2" class="form-select form-select-sm"></select>
+                  <span class="small text-muted">Entra</span>
+                  <select id="awaySubIn2" class="form-select form-select-sm"></select>
+                  <button class="btn btn-sm btn-outline-success" id="awaySubConfirm2" type="button">Confirmar</button>
+                  <button class="btn btn-sm btn-outline-secondary" id="awaySubRevert2" type="button">Reverter</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="quadro-actions">
+          <button class="btn btn-primary" id="addQuadroBtn">Jogar quadro</button>
+          <div id="subsWarning" class="alert alert-warning py-2 mb-0 d-none">
+            Existem substituições iniciadas que não foram confirmadas.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCOREBOARD -->
+    <div class="card shadow-sm mb-4" id="scoreboardCard">
+      <div class="card-body">
+        <h4 class="section-title">Classificação</h4>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-2">
+
+          <!-- HOME SCORE -->
+          <div id="homeScoreWrap" class="d-flex align-items-center gap-2">
+            <img id="homeScoreLogo" src="logo.png" alt="Locais" style="height:32px;width:32px;object-fit:contain" />
+            <input id="homeTeamName" class="form-control" style="width:400px" value="Locais" readonly />
+            <span id="homeScore" class="score-value">0</span>
+          </div>
+
+          <h4 class="fw-bold m-0">vs</h4>
+
+          <!-- AWAY SCORE -->
+          <div id="awayScoreWrap" class="d-flex align-items-center gap-2">
+            <span id="awayScore" class="score-value">0</span>
+            <input id="awayTeamName" class="form-control" style="width:400px" value="Visitantes" readonly />
+            <img id="awayScoreLogo" src="logo.png" alt="Visitantes" style="height:32px;width:32px;object-fit:contain" />
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLES -->
+    <div class="row g-4 mb-4">
+
+      <!-- TABLE 1 -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm equal-card">
+          <div class="card-body">
+
+            <div class="d-flex justify-content-between mb-2">
+              <h5 class="fw-bold">Mesa 1</h5>
+              <div id="table1Controls">
+                <button class="btn btn-sm btn-success btn-clean" onclick="startTimer(1)">▶️</button>
+                <button class="btn btn-sm btn-danger btn-clean" onclick="clearTable(1)">❌</button>
+              </div>
+            </div>
+
+            <div id="table1Game" class="border rounded p-2 text-center text-muted">Sem jogo</div>
+
+            <div id="table1Scoring" class="d-flex justify-content-center align-items-center gap-2 mt-2">
+              <div id="table1ScoreControls" class="d-flex align-items-center gap-2">
+                <span id="table1Score" class="fw-bold fs-5">0 - 0</span>
+                <button class="btn btn-sm btn-primary" onclick="addPoint(1,'home')">+ Local</button>
+                <button class="btn btn-sm btn-primary" onclick="addPoint(1,'away')">+ Visitante</button>
+                <button class="btn btn-sm btn-secondary" onclick="undoPoint(1)">↩</button>
+              </div>
+              <div id="table1Finish" class="d-flex gap-2">
+                <button class="btn btn-sm btn-success" onclick="finishGame(1,'home')">Locais venceram</button>
+                <button class="btn btn-sm btn-danger" onclick="finishGame(1,'away')">Visitantes venceram</button>
+              </div>
+            </div>
+
+            <div id="timer1" class="mt-3 fw-bold text-center">⏱ 00:00</div>
+
+            <!-- DROP TARGET (Open only) -->
+            <div class="mt-3 border rounded p-3 text-center bg-light table-drop"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondragover="allowDrop(event)"
+                 ondrop="dropGameOnTable(event, 1)">
+              Arraste jogo da fila para aqui
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLE 2 -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm equal-card">
+          <div class="card-body">
+
+            <div class="d-flex justify-content-between mb-2">
+              <h5 class="fw-bold">Mesa 2</h5>
+              <div id="table2Controls">
+                <button class="btn btn-sm btn-success btn-clean" onclick="startTimer(2)">▶️</button>
+                <button class="btn btn-sm btn-danger btn-clean" onclick="clearTable(2)">❌</button>
+              </div>
+            </div>
+
+            <div id="table2Game" class="border rounded p-2 text-center text-muted">Sem jogo</div>
+
+            <div id="table2Scoring" class="d-flex justify-content-center align-items-center gap-2 mt-2">
+              <div id="table2ScoreControls" class="d-flex align-items-center gap-2">
+                <span id="table2Score" class="fw-bold fs-5">0 - 0</span>
+                <button class="btn btn-sm btn-primary" onclick="addPoint(2,'home')">+ Local</button>
+                <button class="btn btn-sm btn-primary" onclick="addPoint(2,'away')">+ Visitante</button>
+                <button class="btn btn-sm btn-secondary" onclick="undoPoint(2)">↩</button>
+              </div>
+              <div id="table2Finish" class="d-flex gap-2">
+                <button class="btn btn-sm btn-success" onclick="finishGame(2,'home')">Locais venceram</button>
+                <button class="btn btn-sm btn-danger" onclick="finishGame(2,'away')">Visitantes venceram</button>
+              </div>
+            </div>
+
+            <div id="timer2" class="mt-3 fw-bold text-center">⏱ 00:00</div>
+
+            <!-- DROP TARGET (Open only) -->
+            <div class="mt-3 border rounded p-3 text-center bg-light table-drop"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondragover="allowDrop(event)"
+                 ondrop="dropGameOnTable(event, 2)">
+              Arraste jogo da fila para aqui
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUEUE + HISTORY -->
+    <div class="row g-4">
+
+      <!-- QUEUE -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm equal-card">
+          <div class="card-body">
+
+            <h4 class="section-title">Fila de Jogos</h4>
+
+            <!-- ADD GAME (Open only) -->
+            <div class="row g-2 mb-3" id="queueAddRow">
+              <div class="col-5">
+                <label class="form-label">Jogador Local</label>
+                <select id="queueHomePlayer" class="form-select"></select>
+              </div>
+
+              <div class="col-5">
+                <label class="form-label">Jogador Visitante</label>
+                <select id="queueAwayPlayer" class="form-select"></select>
+              </div>
+
+              <div class="col-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="addGameToQueue()">➕</button>
+              </div>
+            </div>
+
+            <div id="queue" class="border rounded p-2 bg-white"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORICO -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm equal-card">
+          <div class="card-body">
+            <h4 class="section-title">Histórico</h4>
+            <div id="history" class="small"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="appToast" class="toast text-bg-primary border-0">
+      <div class="toast-body" id="toastBody"></div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS + App JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>

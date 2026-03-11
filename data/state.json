@@ -1,0 +1,80 @@
+{
+  "teams": {
+    "home": {
+      "id": null,
+      "name": "",
+      "players": [],
+      "score": 0,
+      "logoUrl": null
+    },
+    "away": {
+      "id": null,
+      "name": "",
+      "players": [],
+      "score": 0,
+      "logoUrl": null
+    }
+  },
+  "viewMode": "teams",
+  "competitionId": null,
+  "quadroSelections": {
+    "home": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "away": [
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "quadroBases": {
+    "home": [
+      [],
+      [],
+      [],
+      []
+    ],
+    "away": [
+      [],
+      [],
+      [],
+      []
+    ]
+  },
+  "activeQuadroIndex": 1,
+  "substitutions": {
+    "home": [],
+    "away": []
+  },
+  "locks": {
+    "quadro1Locked": false,
+    "subsLocked": false,
+    "quadroPlayableId": null
+  },
+  "queue": [],
+  "tables": {
+    "1": {
+      "gameId": null,
+      "playerHome": "",
+      "playerAway": "",
+      "scoreHome": 0,
+      "scoreAway": 0,
+      "history": []
+    },
+    "2": {
+      "gameId": null,
+      "playerHome": "",
+      "playerAway": "",
+      "scoreHome": 0,
+      "scoreAway": 0,
+      "history": []
+    }
+  },
+  "history": [],
+  "nextGameId": 1,
+  "nextQuadroId": 1
+}
