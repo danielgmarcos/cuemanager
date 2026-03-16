@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ADSCR Bilhar - Overlay OBS</title>
+  <style>
+    :root {
+      --bg: rgba(14, 14, 16, 0.92);
+      --bg-soft: rgba(27, 27, 31, 0.82);
+      --panel: rgba(20, 20, 23, 0.9);
+      --line: rgba(255, 255, 255, 0.14);
+      --text: #f7f7f5;
+      --muted: rgba(255, 255, 255, 0.7);
+      --accent: #d7d9df;
+      --metal-1: #6e747b;
+      --metal-2: #2e3339;
+      --metal-3: #a4aab0;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
+      --radius-lg: 28px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --team-width: minmax(250px, 1fr);
+      --score-width: clamp(140px, 16vw, 190px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: transparent;
+      color: var(--text);
+      font-family: "Arial Narrow", Arial, sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    .overlay {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 16px 24px 136px;
+      gap: 14px;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .overlay::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.1), transparent 28%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 36%);
+      pointer-events: none;
+      z-index: -2;
+    }
+
+    .overlay::after {
+      content: "";
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      top: 14px;
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.12));
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .scoreboard {
+      display: grid;
+      grid-template-columns: var(--team-width) var(--score-width) var(--team-width);
+      align-items: stretch;
+      gap: 18px;
+    }
+
+    .team-panel,
+    .score-panel,
+    .table-card,
+    .brand-chip {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: var(--shadow);
+    }
+
+    .team-panel {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.06) 18%, rgba(0, 0, 0, 0.18) 19%, transparent 20%),
+        linear-gradient(180deg, var(--metal-3), var(--metal-2) 42%, #161a1f 58%, var(--metal-1));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      min-width: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .team-panel::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      pointer-events: none;
+    }
+
+    .team-panel.away {
+      flex-direction: row-reverse;
+      text-align: right;
+    }
+
+    .team-logo-wrap {
+      width: 58px;
+      height: 58px;
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, #8b9197, #20242a 44%, #101317 56%, #6d747b);
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    }
+
+    .team-logo {
+      width: 66%;
+      height: 66%;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.18));
+    }
+
+    .team-meta {
+      min-width: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    .team-label {
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    .team-name {
+      font-size: clamp(16px, 1.35vw, 24px);
+      line-height: 1.04;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+      text-wrap: balance;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+    }
+
+    .score-panel {
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.05) 20%, rgba(0, 0, 0, 0.18) 21%, transparent 22%),
+        linear-gradient(180deg, #747a81, #252a31 45%, #111418 55%, #636971);
+      display: grid;
+      place-items: center;
+      padding: 8px 14px 10px;
+      position: relative;
+      overflow: hidden;
+      clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
+    }
+
+    .score-panel::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      pointer-events: none;
+      clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
+    }
+
+    .score-label {
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+    }
+
+    .score-value {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 12px;
+      font-size: clamp(28px, 2.7vw, 44px);
+      font-weight: 700;
+      line-height: 1;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+    }
+
+    .score-dash {
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 0.6em;
+    }
+
+    .middle-space {
+      position: relative;
+    }
+
+    .brand-chip {
+      justify-self: center;
+      align-self: center;
+      background: linear-gradient(180deg, rgba(99, 105, 113, 0.9), rgba(21, 24, 29, 0.96));
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px 8px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand-chip img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      display: block;
+      filter: grayscale(1);
+    }
+
+    .tables {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-self: end;
+    }
+
+    .table-card {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.05) 18%, rgba(0, 0, 0, 0.18) 19%, transparent 20%),
+        linear-gradient(180deg, #737980, #262b31 45%, #121519 55%, #646a72);
+      border-radius: 10px;
+      padding: 12px 14px 14px;
+      min-height: 96px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .table-card::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      pointer-events: none;
+    }
+
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .table-title {
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+    }
+
+    .table-score {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      min-width: 60px;
+      text-align: center;
+      visibility: hidden;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+    }
+
+    .table-score.visible {
+      visibility: visible;
+    }
+
+    .players {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+
+    .table-card.idle .players {
+      grid-template-columns: 1fr;
+    }
+
+    .player-name {
+      font-size: clamp(15px, 1.08vw, 20px);
+      line-height: 1.06;
+      font-weight: 700;
+      text-transform: uppercase;
+      word-break: break-word;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+    }
+
+    .player-name.away {
+      text-align: right;
+    }
+
+    .vs-badge {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      padding: 5px 9px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05) 18%, rgba(0, 0, 0, 0.18) 19%, transparent 20%),
+        linear-gradient(180deg, #70767d, #20252b 46%, #101318 54%, #626871);
+      clip-path: polygon(16% 0%, 84% 0%, 100% 100%, 0% 100%);
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+    }
+
+    .idle-copy {
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-align: center;
+      padding: 8px 6px 4px;
+    }
+
+    .layout-scoreboard .tables,
+    .layout-scoreboard .brand-chip {
+      display: none;
+    }
+
+    .layout-tables .scoreboard,
+    .layout-tables .brand-chip {
+      display: none;
+    }
+
+    .layout-single .brand-chip {
+      display: none;
+    }
+
+    .layout-single .tables {
+      grid-template-columns: 1fr;
+      max-width: min(960px, 100%);
+      justify-self: center;
+      width: 100%;
+    }
+
+    .layout-single .table-card.hidden {
+      display: none;
+    }
+
+    .layout-single .table-card {
+      min-height: 130px;
+    }
+
+    .layout-single .player-name {
+      font-size: clamp(18px, 1.5vw, 24px);
+    }
+
+    .layout-tables .overlay {
+      grid-template-rows: 1fr auto;
+    }
+
+    .layout-scoreboard .overlay {
+      grid-template-rows: auto 1fr;
+    }
+
+    .layout-auto.auto-scoreboard .tables,
+    .layout-auto.auto-scoreboard .brand-chip {
+      display: none;
+    }
+
+    .layout-auto.auto-single .brand-chip {
+      display: none;
+    }
+
+    .layout-auto.auto-single .tables {
+      grid-template-columns: 1fr;
+      max-width: min(960px, 100%);
+      justify-self: center;
+      width: 100%;
+    }
+
+    .layout-auto.auto-single .table-card.hidden {
+      display: none;
+    }
+
+    .layout-auto.auto-single .table-card {
+      min-height: 130px;
+    }
+
+    .layout-auto.auto-single .player-name {
+      font-size: clamp(18px, 1.5vw, 24px);
+    }
+
+    @media (max-width: 1200px) {
+      .scoreboard {
+        grid-template-columns: 1fr;
+      }
+
+      .score-panel {
+        min-height: 96px;
+      }
+
+      .tables {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .overlay {
+        padding-bottom: 108px;
+      }
+    }
+  </style>
+</head>
+<body class="layout-auto auto-two">
+  <main class="overlay">
+    <section class="scoreboard" aria-label="Marcador">
+      <article class="team-panel home">
+        <div class="team-logo-wrap">
+          <img class="team-logo" id="homeLogo" src="logo.png" alt="Logotipo equipa casa" />
+        </div>
+        <div class="team-meta">
+          <div class="team-label">Casa</div>
+          <div class="team-name" id="homeName">Locais</div>
+        </div>
+      </article>
+
+      <article class="score-panel">
+        <div class="score-label" id="scoreLabel">Resultado</div>
+        <div class="score-value">
+          <span id="homeScore">0</span>
+          <span class="score-dash">-</span>
+          <span id="awayScore">0</span>
+        </div>
+      </article>
+
+      <article class="team-panel away">
+        <div class="team-logo-wrap">
+          <img class="team-logo" id="awayLogo" src="logo.png" alt="Logotipo equipa visitante" />
+        </div>
+        <div class="team-meta">
+          <div class="team-label">Visitante</div>
+          <div class="team-name" id="awayName">Visitantes</div>
+        </div>
+      </article>
+    </section>
+
+    <div class="middle-space">
+      <div class="brand-chip">
+        <img src="logo.png" alt="ADSCR Bilhar" />
+        <span>ADSCR Bilhar Live</span>
+      </div>
+    </div>
+
+    <section class="tables" aria-label="Mesas">
+      <article class="table-card" id="table1Card">
+        <header class="table-header">
+          <div class="table-title">Mesa 1</div>
+          <div class="table-score" id="table1Score"></div>
+        </header>
+        <div class="players" id="table1Players">
+          <div class="player-name home" id="table1Home">Jogador 1</div>
+          <div class="vs-badge">VS</div>
+          <div class="player-name away" id="table1Away">Jogador 2</div>
+        </div>
+      </article>
+
+      <article class="table-card" id="table2Card">
+        <header class="table-header">
+          <div class="table-title">Mesa 2</div>
+          <div class="table-score" id="table2Score"></div>
+        </header>
+        <div class="players" id="table2Players">
+          <div class="player-name home" id="table2Home">Jogador 1</div>
+          <div class="vs-badge">VS</div>
+          <div class="player-name away" id="table2Away">Jogador 2</div>
+        </div>
+      </article>
+    </section>
+
+  </main>
+
+  <script>
+    const REFRESH_MS = 1500;
+    const DEFAULT_LOGO = "logo.png";
+    let lastSignature = "";
+    let overlayConfig = { layout: "auto", table: "1" };
+
+    function text(value, fallback) {
+      return String(value || "").trim() || fallback;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function setLayout() {
+      const params = new URLSearchParams(window.location.search);
+      const layout = (params.get("layout") || "auto").toLowerCase();
+      const table = params.get("table") === "2" ? "2" : "1";
+      overlayConfig = { layout, table };
+      document.body.classList.remove(
+        "layout-auto",
+        "layout-full",
+        "layout-scoreboard",
+        "layout-tables",
+        "layout-single",
+        "auto-two",
+        "auto-single",
+        "auto-scoreboard"
+      );
+      if (layout === "scoreboard" || layout === "tables" || layout === "single") {
+        document.body.classList.add(`layout-${layout}`);
+      } else if (layout === "full") {
+        document.body.classList.add("layout-full");
+      } else {
+        document.body.classList.add("layout-auto", "auto-two");
+      }
+
+      document.getElementById("table1Card").classList.toggle("hidden", layout === "single" && table !== "1");
+      document.getElementById("table2Card").classList.toggle("hidden", layout === "single" && table !== "2");
+    }
+
+    function buildLogoPath(viewMode, side, version) {
+      const folder = viewMode === "open" ? "modo_open" : "competicao";
+      return `obs_files/${folder}/logo_equipa_${side}.png?v=${version}`;
+    }
+
+    function updateLogo(img, path) {
+      img.onerror = () => {
+        img.onerror = null;
+        img.src = DEFAULT_LOGO;
+      };
+      img.src = path;
+    }
+
+    function renderTable(tableId, table, isOpenMode) {
+      const hasGame = Boolean(table && table.gameId);
+      const card = document.getElementById(`table${tableId}Card`);
+      const players = document.getElementById(`table${tableId}Players`);
+      const score = document.getElementById(`table${tableId}Score`);
+
+      card.classList.toggle("idle", !hasGame);
+
+      if (!hasGame) {
+        players.innerHTML = '<div class="idle-copy">Mesa livre</div>';
+        score.classList.remove("visible");
+        score.textContent = "";
+        return;
+      }
+
+      players.innerHTML = `
+        <div class="player-name home">${escapeHtml(text(table.playerHome, "Jogador 1"))}</div>
+        <div class="vs-badge">VS</div>
+        <div class="player-name away">${escapeHtml(text(table.playerAway, "Jogador 2"))}</div>
+      `;
+
+      if (isOpenMode) {
+        score.textContent = `${Number(table.scoreHome || 0)} - ${Number(table.scoreAway || 0)}`;
+        score.classList.add("visible");
+      } else {
+        score.textContent = "";
+        score.classList.remove("visible");
+      }
+    }
+
+    function getActiveTableIds(tables) {
+      return ["1", "2"].filter(tableId => Boolean(tables?.[tableId]?.gameId));
+    }
+
+    function pickAutoMode(activeTableIds) {
+      if (activeTableIds.length >= 2) return "two";
+      if (activeTableIds.length === 1) return "single";
+      return "scoreboard";
+    }
+
+    function applyAutoLayout(tables) {
+      if (overlayConfig.layout !== "auto") {
+        return;
+      }
+
+      const activeTableIds = getActiveTableIds(tables);
+      const mode = pickAutoMode(activeTableIds);
+      const singleTableId =
+        mode === "single"
+          ? (activeTableIds[0] || overlayConfig.table)
+          : overlayConfig.table;
+
+      document.body.classList.remove("auto-two", "auto-single", "auto-scoreboard");
+      document.body.classList.add(`auto-${mode}`);
+
+      document.getElementById("table1Card").classList.toggle("hidden", mode === "single" && singleTableId !== "1");
+      document.getElementById("table2Card").classList.toggle("hidden", mode === "single" && singleTableId !== "2");
+    }
+
+    function renderState(state) {
+      const viewMode = state.viewMode === "open" ? "open" : "competicao";
+      const home = state.teams?.home || {};
+      const away = state.teams?.away || {};
+      const tables = state.tables || {};
+      const signature = JSON.stringify({
+        viewMode,
+        homeName: home.name,
+        awayName: away.name,
+        homeScore: home.score,
+        awayScore: away.score,
+        table1: tables["1"],
+        table2: tables["2"]
+      });
+
+      if (signature === lastSignature) {
+        return;
+      }
+      lastSignature = signature;
+
+      document.getElementById("homeName").textContent = text(home.name, "Locais");
+      document.getElementById("awayName").textContent = text(away.name, "Visitantes");
+      document.getElementById("homeScore").textContent = Number(home.score || 0);
+      document.getElementById("awayScore").textContent = Number(away.score || 0);
+      document.getElementById("scoreLabel").textContent = viewMode === "open" ? "Classificacao" : "Resultado";
+
+      const version = encodeURIComponent(`${Date.now()}-${home.name || ""}-${away.name || ""}`);
+      updateLogo(document.getElementById("homeLogo"), buildLogoPath(viewMode, "casa", version));
+      updateLogo(document.getElementById("awayLogo"), buildLogoPath(viewMode, "visitante", version));
+
+      renderTable("1", tables["1"], viewMode === "open");
+      renderTable("2", tables["2"], viewMode === "open");
+      applyAutoLayout(tables);
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/api/state", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        renderState(await response.json());
+      } catch {
+        lastSignature = "";
+      }
+    }
+
+    setLayout();
+    refresh();
+    setInterval(refresh, REFRESH_MS);
+  </script>
+</body>
+</html>

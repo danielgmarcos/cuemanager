@@ -7,6 +7,7 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
@@ -35,6 +36,21 @@ const OBS_COMP_DIR = path.join(OBS_DIR, "competicao");
 const OBS_OPEN_DIR = path.join(OBS_DIR, "modo_open");
 const DEFAULT_LOGO = path.join(__dirname, "logo.png");
 const DEFAULT_BALL8 = path.join(__dirname, "ball8.svg");
+const OBS_REMOTE_CONFIG = {
+  enabled: parseBoolean(process.env.OBS_REMOTE_ENABLED, false),
+  host: process.env.OBS_REMOTE_HOST || "127.0.0.1",
+  port: Number.parseInt(process.env.OBS_REMOTE_PORT || "4455", 10),
+  password: process.env.OBS_REMOTE_PASSWORD || "",
+  sceneName: process.env.OBS_SCENE_NAME || "Jogo",
+  cam1Source: process.env.OBS_CAM1_SOURCE || "Cam Mesa 1",
+  cam2Source: process.env.OBS_CAM2_SOURCE || "Cam Mesa 2",
+  overlaySource: process.env.OBS_OVERLAY_SOURCE || "Overlay Browser",
+  canvasWidth: Number.parseInt(process.env.OBS_CANVAS_WIDTH || "1920", 10),
+  canvasHeight: Number.parseInt(process.env.OBS_CANVAS_HEIGHT || "1080", 10),
+  sponsorSafeHeight: Number.parseInt(process.env.OBS_SPONSOR_SAFE_HEIGHT || "136", 10),
+  topSafeHeight: Number.parseInt(process.env.OBS_TOP_SAFE_HEIGHT || "82", 10),
+  outerMargin: Number.parseInt(process.env.OBS_OUTER_MARGIN || "20", 10)
+};
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(OBS_DIR, { recursive: true });
@@ -42,6 +58,332 @@ fs.mkdirSync(OBS_COMP_DIR, { recursive: true });
 fs.mkdirSync(OBS_OPEN_DIR, { recursive: true });
 
 const STATE_FILE = path.join(DATA_DIR, "state.json");
+
+function parseBoolean(value, defaultValue = false) {
+  if (value == null) return defaultValue;
+  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
+}
+
+function computeObsLayoutRects(config) {
+  const margin = config.outerMargin;
+  const top = config.topSafeHeight;
+  const bottom = config.sponsorSafeHeight;
+  const width = config.canvasWidth;
+  const height = config.canvasHeight;
+  const gutter = 20;
+  const videoTop = top;
+  const videoHeight = Math.max(200, height - top - bottom);
+  const splitWidth = Math.floor((width - (margin * 2) - gutter) / 2);
+  const rightX = margin + splitWidth + gutter;
+  const fullWidth = width - (margin * 2);
+
+  return {
+    split: {
+      [config.cam1Source]: {
+        positionX: margin,
+        positionY: videoTop,
+        boundsWidth: splitWidth,
+        boundsHeight: videoHeight
+      },
+      [config.cam2Source]: {
+        positionX: rightX,
+        positionY: videoTop,
+        boundsWidth: splitWidth,
+        boundsHeight: videoHeight
+      }
+    },
+    table1: {
+      [config.cam1Source]: {
+        positionX: margin,
+        positionY: videoTop,
+        boundsWidth: fullWidth,
+        boundsHeight: videoHeight
+      }
+    },
+    table2: {
+      [config.cam2Source]: {
+        positionX: margin,
+        positionY: videoTop,
+        boundsWidth: fullWidth,
+        boundsHeight: videoHeight
+      }
+    }
+  };
+}
+
+function computeRemoteLayout(state) {
+  const activeTables = ["1", "2"].filter(tableId => Boolean(state.tables?.[tableId]?.gameId));
+  if (activeTables.length >= 2) return "split";
+  if (activeTables[0] === "1") return "table1";
+  if (activeTables[0] === "2") return "table2";
+  return "scoreboard";
+}
+
+class ObsRemoteController {
+  constructor(config) {
+    this.config = config;
+    this.ws = null;
+    this.connectPromise = null;
+    this.pending = new Map();
+    this.requestCounter = 1;
+    this.sceneItemIds = new Map();
+    this.serial = Promise.resolve();
+    this.lastAppliedLayout = null;
+    this.lastError = null;
+    this.lastErrorAt = 0;
+    this.rects = computeObsLayoutRects(config);
+  }
+
+  status() {
+    return {
+      enabled: this.config.enabled,
+      connected: this.isConnected(),
+      sceneName: this.config.sceneName,
+      cam1Source: this.config.cam1Source,
+      cam2Source: this.config.cam2Source,
+      overlaySource: this.config.overlaySource,
+      lastAppliedLayout: this.lastAppliedLayout,
+      lastError: this.lastError
+    };
+  }
+
+  isConnected() {
+    return this.ws && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  syncState(state) {
+    if (!this.config.enabled) return;
+    const layout = computeRemoteLayout(state);
+    this.serial = this.serial
+      .then(() => this.applyLayout(layout))
+      .catch(err => {
+        this.recordError(err);
+      });
+  }
+
+  recordError(err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const now = Date.now();
+    this.lastError = message;
+    if (now - this.lastErrorAt >= 15000) {
+      console.error("OBS remote error:", message);
+      this.lastErrorAt = now;
+    }
+  }
+
+  async ensureConnected() {
+    if (this.isConnected()) return;
+    if (this.connectPromise) {
+      await this.connectPromise;
+      return;
+    }
+
+    this.connectPromise = new Promise((resolve, reject) => {
+      const ws = new WebSocket(`ws://${this.config.host}:${this.config.port}`);
+      let settled = false;
+
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        this.cleanupSocket();
+        reject(error instanceof Error ? error : new Error(String(error)));
+      };
+
+      ws.addEventListener("error", () => {
+        fail(new Error(`Não foi possível ligar ao OBS em ws://${this.config.host}:${this.config.port}`));
+      });
+
+      ws.addEventListener("close", () => {
+        if (!settled) {
+          fail(new Error("Ligação ao OBS fechada durante a autenticação."));
+        } else {
+          this.cleanupSocket();
+        }
+      });
+
+      ws.addEventListener("message", async (event) => {
+        try {
+          const raw =
+            typeof event.data === "string"
+              ? event.data
+              : Buffer.from(event.data).toString("utf8");
+          const packet = JSON.parse(raw);
+
+          if (packet.op === 0) {
+            const authentication = packet.d?.authentication;
+            const identify = {
+              rpcVersion: packet.d?.rpcVersion || 1
+            };
+            if (authentication) {
+              identify.authentication = this.buildAuthentication(authentication.challenge, authentication.salt);
+            }
+            ws.send(JSON.stringify({ op: 1, d: identify }));
+            return;
+          }
+
+          if (packet.op === 2) {
+            settled = true;
+            this.ws = ws;
+            this.lastError = null;
+            resolve();
+            return;
+          }
+
+          if (packet.op === 7) {
+            const requestId = packet.d?.requestId;
+            if (!requestId) return;
+            const pending = this.pending.get(requestId);
+            if (!pending) return;
+            this.pending.delete(requestId);
+            if (packet.d?.requestStatus?.result) {
+              pending.resolve(packet.d?.responseData || {});
+            } else {
+              pending.reject(new Error(packet.d?.requestStatus?.comment || `OBS request ${packet.d?.requestType || requestId} falhou.`));
+            }
+          }
+        } catch (error) {
+          fail(error);
+        }
+      });
+    }).finally(() => {
+      this.connectPromise = null;
+    });
+
+    await this.connectPromise;
+  }
+
+  cleanupSocket() {
+    if (this.ws) {
+      try {
+        this.ws.close();
+      } catch {
+        // no-op
+      }
+    }
+    this.ws = null;
+    this.sceneItemIds.clear();
+    for (const pending of this.pending.values()) {
+      pending.reject(new Error("Ligação ao OBS perdida."));
+    }
+    this.pending.clear();
+  }
+
+  buildAuthentication(challenge, salt) {
+    const secret = crypto
+      .createHash("sha256")
+      .update(`${this.config.password}${salt}`)
+      .digest("base64");
+
+    return crypto
+      .createHash("sha256")
+      .update(`${secret}${challenge}`)
+      .digest("base64");
+  }
+
+  async call(requestType, requestData = undefined) {
+    await this.ensureConnected();
+    const requestId = String(this.requestCounter++);
+    const payload = {
+      op: 6,
+      d: {
+        requestType,
+        requestId
+      }
+    };
+    if (requestData && Object.keys(requestData).length > 0) {
+      payload.d.requestData = requestData;
+    }
+
+    return new Promise((resolve, reject) => {
+      this.pending.set(requestId, { resolve, reject });
+      try {
+        this.ws.send(JSON.stringify(payload));
+      } catch (error) {
+        this.pending.delete(requestId);
+        reject(error);
+      }
+    });
+  }
+
+  async getSceneItemId(sourceName) {
+    const key = `${this.config.sceneName}::${sourceName}`;
+    if (this.sceneItemIds.has(key)) {
+      return this.sceneItemIds.get(key);
+    }
+    const response = await this.call("GetSceneItemId", {
+      sceneName: this.config.sceneName,
+      sourceName
+    });
+    this.sceneItemIds.set(key, response.sceneItemId);
+    return response.sceneItemId;
+  }
+
+  async setSceneItemEnabled(sourceName, sceneItemEnabled) {
+    const sceneItemId = await this.getSceneItemId(sourceName);
+    await this.call("SetSceneItemEnabled", {
+      sceneName: this.config.sceneName,
+      sceneItemId,
+      sceneItemEnabled
+    });
+  }
+
+  async setSceneItemTransform(sourceName, rect) {
+    const sceneItemId = await this.getSceneItemId(sourceName);
+    await this.call("SetSceneItemTransform", {
+      sceneName: this.config.sceneName,
+      sceneItemId,
+      sceneItemTransform: {
+        positionX: rect.positionX,
+        positionY: rect.positionY,
+        rotation: 0,
+        alignment: 5,
+        boundsType: "OBS_BOUNDS_STRETCH",
+        boundsAlignment: 5,
+        boundsWidth: rect.boundsWidth,
+        boundsHeight: rect.boundsHeight,
+        cropToBounds: false
+      }
+    });
+  }
+
+  async applyLayout(layout) {
+    if (layout === this.lastAppliedLayout && this.isConnected()) {
+      return;
+    }
+
+    await this.ensureConnected();
+
+    const visibleSources = new Set();
+    if (layout === "split") {
+      visibleSources.add(this.config.cam1Source);
+      visibleSources.add(this.config.cam2Source);
+    } else if (layout === "table1") {
+      visibleSources.add(this.config.cam1Source);
+    } else if (layout === "table2") {
+      visibleSources.add(this.config.cam2Source);
+    }
+
+    const cameraSources = [this.config.cam1Source, this.config.cam2Source];
+    for (const sourceName of cameraSources) {
+      await this.setSceneItemEnabled(sourceName, visibleSources.has(sourceName));
+    }
+
+    const rectSet = this.rects[layout];
+    if (rectSet) {
+      for (const [sourceName, rect] of Object.entries(rectSet)) {
+        await this.setSceneItemTransform(sourceName, rect);
+      }
+    }
+
+    if (this.config.overlaySource) {
+      await this.setSceneItemEnabled(this.config.overlaySource, true);
+    }
+
+    this.lastAppliedLayout = layout;
+  }
+}
+
+const obsRemote = new ObsRemoteController(OBS_REMOTE_CONFIG);
 
 // --- Initial state & helpers -----------------------------------------------
 
@@ -85,6 +427,7 @@ function initState() {
 
   // Initialize OBS files
   clearObsFiles();
+  obsRemote.syncState(initial);
   return initial;
 }
 
@@ -114,6 +457,7 @@ function saveState(state) {
 
   updateObsTable("1", state.tables["1"], state.viewMode, baseDir);
   updateObsTable("2", state.tables["2"], state.viewMode, baseDir);
+  obsRemote.syncState(state);
 }
 
 function clearObsFiles() {
@@ -188,7 +532,7 @@ async function downloadLogoToFile(url, filePath) {
 }
 
 // recompute team scores purely from history
-function computeCompetitionScore(history) {
+function computeCompetitionScore(history, tables) {
   const map = new Map();
   let maxNum = 0;
   (history || []).forEach(g => {
@@ -199,23 +543,35 @@ function computeCompetitionScore(history) {
     if (num > maxNum) maxNum = num;
   });
 
+  const inProgressNums = new Set(
+    Object.values(tables || {})
+      .filter(t => t?.gameId && Number.isFinite(t.gameNumber))
+      .map(t => t.gameNumber)
+  );
+
   let home = 0;
   let away = 0;
   let played = 0;
   for (let n = 1; n <= maxNum; n++) {
     const g = map.get(n);
-    if (!g) break; // stop at first gap
+    if (!g) {
+      if (inProgressNums.has(n)) continue;
+      break; // stop at first gap not in play
+    }
     if (g.winnerSide === "home") home++;
     else if (g.winnerSide === "away") away++;
     played++;
-    if (home >= 9 || away >= 9 || (home === 8 && away === 8 && played >= 16)) break;
+    if (home >= 9 || away >= 9 || (home === 8 && away === 8 && played >= 16)) {
+      return { home, away };
+    }
   }
+
   return { home, away };
 }
 
 function recomputeTeamScores(state) {
   if (state.viewMode !== "open") {
-    const { home, away } = computeCompetitionScore(state.history || []);
+    const { home, away } = computeCompetitionScore(state.history || [], state.tables || {});
     state.teams.home.score = home;
     state.teams.away.score = away;
     return;
@@ -232,13 +588,13 @@ function recomputeTeamScores(state) {
   state.teams.away.score = away;
 }
 
-function countBaseWins(history, viewMode) {
-  if (viewMode !== "open") {
-    return computeCompetitionScore(history || []);
+function countBaseWins(state) {
+  if (state.viewMode !== "open") {
+    return computeCompetitionScore(state.history || [], state.tables || {});
   }
   let home = 0;
   let away = 0;
-  (history || []).forEach(g => {
+  (state.history || []).forEach(g => {
     if (g.isAdjustment || g.isMeta) return;
     if (g.winnerSide === "home") home++;
     else if (g.winnerSide === "away") away++;
@@ -478,6 +834,10 @@ app.get("/api/state", (req, res) => {
   res.json(loadState());
 });
 
+app.get("/api/obs/status", (req, res) => {
+  res.json(obsRemote.status());
+});
+
 // Set competition
 app.post("/api/competition", (req, res) => {
   const state = loadState();
@@ -602,7 +962,7 @@ app.post("/api/set-team-scores", (req, res) => {
   let desiredHome = Number(req.body.homeScore || 0);
   let desiredAway = Number(req.body.awayScore || 0);
 
-  const base = countBaseWins(state.history || [], state.viewMode);
+  const base = countBaseWins(state);
   let warning = null;
 
   if (desiredHome < base.home || desiredAway < base.away) {

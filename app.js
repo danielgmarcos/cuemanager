@@ -730,6 +730,7 @@ function setupQuadroSelectListeners() {
       updateQuadroDuplicates();
       saveQuadroSelections();
       updateLockButtons();
+      updateQuadroButtonsStatus();
     });
     sel.dataset.listenerAttached = "1";
   });
@@ -1158,6 +1159,71 @@ function updateSubstitutionWarning() {
   warning.classList.toggle("d-none", !show);
 }
 
+function getPlayersInPlayForQuadro(quadroId) {
+  const players = new Set();
+  if (!quadroId) return players;
+  const range = getQuadroGameRange(quadroId);
+  Object.values(state.tables || {}).forEach(t => {
+    const num = Number.isFinite(t?.gameNumber) ? t.gameNumber : null;
+    const matchByRange = range && num != null && num >= range.start && num <= range.end;
+    if (t?.gameId && (t.quadroId === quadroId || matchByRange)) {
+      if (t.playerHome) players.add(t.playerHome);
+      if (t.playerAway) players.add(t.playerAway);
+    }
+  });
+  return players;
+}
+
+function hasPendingSubsInvolvingPlayers(playersSet) {
+  if (!playersSet || playersSet.size === 0) return false;
+  if (!canApplySubstitutions()) return false;
+  const subs = getSubstitutionState();
+  return ["home", "away"].some(side => {
+    return subs[side].some((s, idx) => {
+      const { outId, inId } = getSubRowIds(side, idx);
+      const out = $(outId)?.value || s.out || "";
+      const inbound = $(inId)?.value || s.in || "";
+      const hasAny = !!out || !!inbound;
+      if (!hasAny) return false;
+      if (s.confirmed) return false;
+      return playersSet.has(out) || playersSet.has(inbound);
+    });
+  });
+}
+
+function getQuadroIdFromGameNumber(num) {
+  if (!Number.isFinite(num)) return null;
+  return Math.ceil(num / 4);
+}
+
+function getQuadroGameRange(quadroId) {
+  if (!quadroId) return null;
+  const start = (quadroId - 1) * 4 + 1;
+  return { start, end: start + 3 };
+}
+
+function getQuadroProgress(quadroId) {
+  if (!quadroId) return { completed: 0, inProgress: 0 };
+  const range = getQuadroGameRange(quadroId);
+  const completed = (state.history || []).filter(g => {
+    if (g.isAdjustment || g.isMeta) return false;
+    if (g.quadroId === quadroId) return true;
+    if (!range) return false;
+    const num = Number.isFinite(g.gameNumber) ? g.gameNumber : g.id;
+    return Number.isFinite(num) && num >= range.start && num <= range.end;
+  }).length;
+
+  const inProgress = Object.values(state.tables || {}).filter(t => {
+    if (!t?.gameId) return false;
+    if (t.quadroId === quadroId) return true;
+    if (!range) return false;
+    const num = Number.isFinite(t.gameNumber) ? t.gameNumber : null;
+    return num != null && num >= range.start && num <= range.end;
+  }).length;
+
+  return { completed, inProgress };
+}
+
 function isQuadroSelectionComplete() {
   const home = ["quadroHome1","quadroHome2","quadroHome3","quadroHome4"].map(id => ($(id)?.value || "").trim());
   const away = ["quadroAway1","quadroAway2","quadroAway3","quadroAway4"].map(id => ($(id)?.value || "").trim());
@@ -1419,14 +1485,15 @@ async function saveQuadroSelections() {
 }
 
 function setActiveQuadro(idx) {
-  const completed = (state.history || []).filter(g => !g.isAdjustment && !g.isMeta && g.quadroId != null)
-    .reduce((acc, g) => {
-      acc[g.quadroId] = (acc[g.quadroId] || 0) + 1;
-      return acc;
-    }, {});
-
   for (let i = 1; i < idx; i++) {
-    if ((completed[i] || 0) < 4) {
+    const progress = getQuadroProgress(i);
+    const playersInPlay = getPlayersInPlayForQuadro(i);
+    const pendingSubsConflict = hasPendingSubsInvolvingPlayers(playersInPlay);
+    const canAdvanceEarly =
+      (progress.completed + progress.inProgress === 4) &&
+      (progress.inProgress === 1) &&
+      !pendingSubsConflict;
+    if (progress.completed < 4 && !canAdvanceEarly) {
       showToast("Não podes avançar para o quadro seguinte sem concluir o anterior.", "warning");
       return;
     }
@@ -1442,11 +1509,13 @@ function setActiveQuadro(idx) {
 }
 
 function updateQuadroButtonsStatus() {
-  const completed = (state.history || []).filter(g => !g.isAdjustment && !g.isMeta && g.quadroId != null)
-    .reduce((acc, g) => {
-      acc[g.quadroId] = (acc[g.quadroId] || 0) + 1;
-      return acc;
-    }, {});
+  const completed = {};
+  const inProgress = {};
+  [1,2,3,4].forEach(i => {
+    const progress = getQuadroProgress(i);
+    completed[i] = progress.completed;
+    inProgress[i] = progress.inProgress;
+  });
 
   [1,2,3,4].forEach(i => {
     const btn = $(`quadroBtn${i}`);
@@ -1459,19 +1528,26 @@ function updateQuadroButtonsStatus() {
     } else {
       btn.classList.add("btn-outline-secondary");
     }
-    btn.disabled = i > 1 && ((completed[i - 1] || 0) < 4);
+    const prevCount = completed[i - 1] || 0;
+    const prevInProgress = inProgress[i - 1] || 0;
+    const playersInPlay = getPlayersInPlayForQuadro(i - 1);
+    const pendingSubsConflict = hasPendingSubsInvolvingPlayers(playersInPlay);
+    const canAdvanceEarly =
+      (prevCount + prevInProgress === 4) &&
+      (prevInProgress === 1) &&
+      !pendingSubsConflict;
+    btn.disabled = i > 1 && !(prevCount >= 4 || canAdvanceEarly);
   });
 
   const addBtn = $("addQuadroBtn");
   if (addBtn) {
     const lockedQ1 = !!state.locks?.quadro1Locked;
-    const pendingSubs = hasPendingSubstitutions();
-    const canPlay = (lockedQ1 || isQuadroSelectionComplete()) && !pendingSubs;
-    const inProgress = Object.values(state.tables || {}).some(t => t?.gameId);
     const activeQuadro = state.activeQuadroIndex || 1;
+    const pendingSubsConflictActive = hasPendingSubsInvolvingPlayers(getPlayersInPlayForQuadro(activeQuadro));
+    const canPlay = (lockedQ1 || isQuadroSelectionComplete()) && !pendingSubsConflictActive;
     const alreadyPlayable = state.locks?.quadroPlayableId === activeQuadro;
     const alreadyCompleted = (state.history || []).filter(g => !g.isAdjustment && !g.isMeta && g.quadroId === activeQuadro).length >= 4;
-    addBtn.disabled = inProgress || !canPlay || alreadyPlayable || alreadyCompleted;
+    addBtn.disabled = !canPlay || alreadyPlayable || alreadyCompleted;
   }
   updateGuidance();
 }
@@ -1490,12 +1566,7 @@ function addQuadroToQueue() {
     recomputeQuadroBasesFromSubs();
     applyQuadroSelections();
   }
-  const completed = (state.history || []).filter(g => !g.isAdjustment && !g.isMeta && g.quadroId != null)
-    .reduce((acc, g) => {
-      acc[g.quadroId] = (acc[g.quadroId] || 0) + 1;
-      return acc;
-    }, {});
-  const q1Done = (completed[1] || 0) >= 4;
+  const q1Done = (getQuadroProgress(1).completed || 0) >= 4;
   const lockedQ1 = !!state.locks?.quadro1Locked;
   if (!lockedQ1) {
     if (!isQuadroSelectionComplete()) {
@@ -1512,11 +1583,17 @@ function addQuadroToQueue() {
     showToast("Confirma as substituições antes de jogar o quadro.", "warning");
     return;
   }
-  const finished = (state.history || []).filter(g => !g.isAdjustment && !g.isMeta && g.quadroId != null);
+  const finished = (state.history || []).filter(g => !g.isAdjustment && !g.isMeta);
   if (finished.length) {
-    const lastQuadro = Math.max(...finished.map(g => g.quadroId));
-    const lastCount = finished.filter(g => g.quadroId === lastQuadro).length;
-    if (lastCount < 4) {
+    const lastQuadro = Math.max(...finished.map(g => g.quadroId ?? getQuadroIdFromGameNumber(g.gameNumber ?? g.id)).filter(Boolean));
+    const progress = getQuadroProgress(lastQuadro);
+    const playersInPlay = getPlayersInPlayForQuadro(lastQuadro);
+    const pendingSubsConflict = hasPendingSubsInvolvingPlayers(playersInPlay);
+    const canAdvanceEarly =
+      (progress.completed + progress.inProgress === 4) &&
+      (progress.inProgress === 1) &&
+      !pendingSubsConflict;
+    if (progress.completed < 4 && !canAdvanceEarly) {
       showToast("Ainda existem jogos por concluir do quadro atual.", "warning");
       return;
     }
@@ -1777,6 +1854,7 @@ function updateTableUI(tableId) {
     scoreDiv.textContent = `${t.scoreHome} - ${t.scoreAway}`;
   }
   updateQuadroRowActions();
+  updateQuadroButtonsStatus();
 }
 
 async function saveTable(tableId) {
@@ -1970,27 +2048,8 @@ function getSequentialScoreInfo() {
     const away = state.teams.away.score || 0;
     return { home, away, played: (state.history || []).filter(g => !g.isAdjustment && !g.isMeta).length };
   }
-  const map = new Map();
-  let maxNum = 0;
-  (state.history || []).forEach(g => {
-    if (g.isAdjustment || g.isMeta) return;
-    const num = Number.isFinite(g.gameNumber) ? g.gameNumber : g.id;
-    if (!Number.isFinite(num)) return;
-    map.set(num, g);
-    if (num > maxNum) maxNum = num;
-  });
-  let home = 0;
-  let away = 0;
-  let played = 0;
-  for (let n = 1; n <= maxNum; n++) {
-    const g = map.get(n);
-    if (!g) break;
-    if (g.winnerSide === "home") home++;
-    else if (g.winnerSide === "away") away++;
-    played++;
-    if (home >= 9 || away >= 9 || (home === 8 && away === 8 && played >= 16)) break;
-  }
-  return { home, away, played };
+  const result = computeCompetitionScoreWithStandby(state.history || [], state.tables || {});
+  return { home: result.home, away: result.away, played: result.played };
 }
 
 function flashWinner(side) {
@@ -2102,11 +2161,11 @@ function renderHistory() {
   }
 
   const sorted = games.slice().sort((a, b) => (b.gameNumber ?? b.id) - (a.gameNumber ?? a.id));
-  const standbyFrom = getStandbyGameNumber(sorted);
+  const standbyGameNumber = getStandbyGameNumber(sorted);
 
   sorted.forEach(g => {
       const num = Number.isFinite(g.gameNumber) ? g.gameNumber : g.id;
-      const isStandby = Number.isFinite(num) && standbyFrom != null && num > standbyFrom;
+      const isStandby = Number.isFinite(num) && standbyGameNumber != null && num === standbyGameNumber;
       const row = document.createElement("div");
       const label = `Jogo ${g.gameNumber ?? g.id}`;
       const winClass = g.winnerSide === "home" ? "history-win-home" : "history-win-away";
@@ -2141,28 +2200,57 @@ function renderHistory() {
 
 function getStandbyGameNumber(sortedGames) {
   if (viewMode === "open") return null;
+  const result = computeCompetitionScoreWithStandby(sortedGames || [], state.tables || {});
+  return result.standbyNum ?? null;
+}
+
+function computeCompetitionScoreWithStandby(history, tables) {
+  const items = (history || [])
+    .filter(g => !g.isAdjustment && !g.isMeta)
+    .map(g => {
+      const num = Number.isFinite(g.gameNumber) ? g.gameNumber : g.id;
+      return Number.isFinite(num) ? { g, num } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.num - b.num);
+
+  if (!items.length) return { home: 0, away: 0, played: 0, standbyNum: null };
+
   const map = new Map();
   let maxNum = 0;
-  sortedGames.forEach(g => {
-    const num = Number.isFinite(g.gameNumber) ? g.gameNumber : g.id;
-    if (!Number.isFinite(num)) return;
-    map.set(num, g);
-    if (num > maxNum) maxNum = num;
+  items.forEach(item => {
+    map.set(item.num, item.g);
+    if (item.num > maxNum) maxNum = item.num;
   });
+
+  const inProgressNums = new Set(
+    Object.values(tables || {})
+      .filter(t => t?.gameId && Number.isFinite(t.gameNumber))
+      .map(t => t.gameNumber)
+  );
+
   let home = 0;
   let away = 0;
   let played = 0;
+  let standbyNum = null;
+
   for (let n = 1; n <= maxNum; n++) {
     const g = map.get(n);
-    if (!g) return n - 1; // first gap => standby from next number
+    if (!g) {
+      if (inProgressNums.has(n)) continue;
+      break;
+    }
     if (g.winnerSide === "home") home++;
     else if (g.winnerSide === "away") away++;
     played++;
     if (home >= 9 || away >= 9 || (home === 8 && away === 8 && played >= 16)) {
-      return n; // anything after is standby
+      const hasLowerInPlay = [...inProgressNums].some(num => num < n);
+      standbyNum = hasLowerInPlay ? n : null;
+      break;
     }
   }
-  return null;
+
+  return { home, away, played, standbyNum };
 }
 
 async function saveHistoryEdit(id) {

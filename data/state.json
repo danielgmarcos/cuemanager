@@ -1,80 +1,181 @@
 {
   "teams": {
     "home": {
-      "id": null,
-      "name": "",
-      "players": [],
-      "score": 0,
-      "logoUrl": null
+      "id": "EQP7404",
+      "name": "ACSDR Valada-Atadoa-Atadoinha - B",
+      "players": [
+        "André Calçada",
+        "Daniel Marcos",
+        "Fernando Duarte",
+        "João Lamas",
+        "Miguel Rodrigues",
+        "Pedro Beja",
+        "Sérgio Branco"
+      ],
+      "score": 3,
+      "logoUrl": "https://portalbilhar.pt/Imagens/Clubes/06ACSDRV.jpeg"
     },
     "away": {
-      "id": null,
-      "name": "",
-      "players": [],
+      "id": "EQP7101",
+      "name": "Coimbra Run Out - SANDRO CAR",
+      "players": [
+        "Cesar Elias",
+        "Francisco Barros",
+        "Gonçalo Fernandes",
+        "João Simões",
+        "Mauro Matias",
+        "Renato Silva",
+        "Tiago Paiva"
+      ],
       "score": 0,
-      "logoUrl": null
+      "logoUrl": "https://portalbilhar.pt/Imagens/Clubes/06CROCBI.jpeg"
     }
   },
   "viewMode": "teams",
-  "competitionId": null,
+  "competitionId": "cPPPPT0168-25",
   "quadroSelections": {
     "home": [
-      "",
-      "",
-      "",
-      ""
+      "André Calçada",
+      "Daniel Marcos",
+      "Fernando Duarte",
+      "João Lamas"
     ],
     "away": [
-      "",
-      "",
-      "",
-      ""
+      "Francisco Barros",
+      "Gonçalo Fernandes",
+      "João Simões",
+      "Cesar Elias"
     ]
   },
   "quadroBases": {
     "home": [
-      [],
-      [],
-      [],
-      []
+      [
+        "André Calçada",
+        "Daniel Marcos",
+        "Fernando Duarte",
+        "João Lamas"
+      ],
+      [
+        "André Calçada",
+        "Daniel Marcos",
+        "Fernando Duarte",
+        "João Lamas"
+      ],
+      [
+        "André Calçada",
+        "Daniel Marcos",
+        "Fernando Duarte",
+        "João Lamas"
+      ],
+      [
+        "André Calçada",
+        "Daniel Marcos",
+        "Fernando Duarte",
+        "João Lamas"
+      ]
     ],
     "away": [
-      [],
-      [],
-      [],
-      []
+      [
+        "Cesar Elias",
+        "Francisco Barros",
+        "Gonçalo Fernandes",
+        "João Simões"
+      ],
+      [
+        "Cesar Elias",
+        "Francisco Barros",
+        "Gonçalo Fernandes",
+        "João Simões"
+      ],
+      [
+        "Cesar Elias",
+        "Francisco Barros",
+        "Gonçalo Fernandes",
+        "João Simões"
+      ],
+      [
+        "Cesar Elias",
+        "Francisco Barros",
+        "Gonçalo Fernandes",
+        "João Simões"
+      ]
     ]
   },
-  "activeQuadroIndex": 1,
+  "activeQuadroIndex": 2,
   "substitutions": {
     "home": [],
     "away": []
   },
   "locks": {
-    "quadro1Locked": false,
-    "subsLocked": false,
-    "quadroPlayableId": null
+    "quadro1Locked": true,
+    "subsLocked": false
   },
   "queue": [],
   "tables": {
     "1": {
-      "gameId": null,
-      "playerHome": "",
-      "playerAway": "",
+      "gameId": 4,
+      "gameNumber": 4,
+      "playerHome": "João Lamas",
+      "playerAway": "João Simões",
       "scoreHome": 0,
       "scoreAway": 0,
-      "history": []
+      "history": [],
+      "quadroId": 1,
+      "quadroIndex": 4
     },
     "2": {
-      "gameId": null,
-      "playerHome": "",
-      "playerAway": "",
+      "gameId": 5,
+      "gameNumber": 5,
+      "playerHome": "André Calçada",
+      "playerAway": "Francisco Barros",
       "scoreHome": 0,
       "scoreAway": 0,
-      "history": []
+      "history": [],
+      "quadroId": 2,
+      "quadroIndex": 1
     }
   },
-  "history": [],
+  "history": [
+    {
+      "id": 2,
+      "gameNumber": 2,
+      "table": 2,
+      "playerHome": "Daniel Marcos",
+      "playerAway": "Francisco Barros",
+      "scoreHome": 1,
+      "scoreAway": 0,
+      "winnerSide": "home",
+      "quadroId": 1,
+      "quadroIndex": 2,
+      "finishedAt": "2026-03-16T18:55:17.115Z"
+    },
+    {
+      "id": 1,
+      "gameNumber": 1,
+      "table": 1,
+      "playerHome": "André Calçada",
+      "playerAway": "Cesar Elias",
+      "scoreHome": 1,
+      "scoreAway": 0,
+      "winnerSide": "home",
+      "quadroId": 1,
+      "quadroIndex": 1,
+      "finishedAt": "2026-03-16T18:55:59.542Z"
+    },
+    {
+      "id": 3,
+      "gameNumber": 3,
+      "table": 2,
+      "playerHome": "Fernando Duarte",
+      "playerAway": "Gonçalo Fernandes",
+      "scoreHome": 1,
+      "scoreAway": 0,
+      "winnerSide": "home",
+      "quadroId": 1,
+      "quadroIndex": 3,
+      "finishedAt": "2026-03-16T19:01:24.564Z"
+    }
+  ],
   "nextGameId": 1,
   "nextQuadroId": 1
 }
