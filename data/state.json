@@ -1,107 +1,106 @@
 {
   "teams": {
     "home": {
-      "id": "EQP7404",
-      "name": "ACSDR Valada-Atadoa-Atadoinha - B",
+      "id": "EQP7069",
+      "name": "ACSDR Valada-Atadoa-Atadoinha - A",
       "players": [
-        "André Calçada",
-        "Daniel Marcos",
-        "Fernando Duarte",
-        "João Lamas",
-        "Miguel Rodrigues",
-        "Pedro Beja",
-        "Sérgio Branco"
+        "António Melro",
+        "Fernando Baptista",
+        "Hugo Panão",
+        "Luis Branco",
+        "Mário Miguel",
+        "Pedro Caridade",
+        "Tiago Galvão"
       ],
-      "score": 3,
+      "score": 0,
       "logoUrl": "https://portalbilhar.pt/Imagens/Clubes/06ACSDRV.jpeg"
     },
     "away": {
-      "id": "EQP7101",
-      "name": "Coimbra Run Out - SANDRO CAR",
+      "id": "EQP7070",
+      "name": "AD S. Mamede - A",
       "players": [
-        "Cesar Elias",
-        "Francisco Barros",
-        "Gonçalo Fernandes",
-        "João Simões",
-        "Mauro Matias",
-        "Renato Silva",
-        "Tiago Paiva"
+        "Acácio Silvano",
+        "Jorge Cardeira",
+        "José Carlos",
+        "Nuno Gomes",
+        "Pedro Rodrigues",
+        "Teresa Queirós"
       ],
       "score": 0,
-      "logoUrl": "https://portalbilhar.pt/Imagens/Clubes/06CROCBI.jpeg"
+      "logoUrl": "https://portalbilhar.pt/Imagens/Clubes/06ADSMAM.png"
     }
   },
   "viewMode": "teams",
-  "competitionId": "cPPPPT0168-25",
+  "competitionId": "cPPPPT0164-25",
   "quadroSelections": {
     "home": [
-      "André Calçada",
-      "Daniel Marcos",
-      "Fernando Duarte",
-      "João Lamas"
+      "Fernando Baptista",
+      "Hugo Panão",
+      "Luis Branco",
+      "António Melro"
     ],
     "away": [
-      "Francisco Barros",
-      "Gonçalo Fernandes",
-      "João Simões",
-      "Cesar Elias"
+      "Acácio Silvano",
+      "Jorge Cardeira",
+      "José Carlos",
+      "Pedro Rodrigues"
     ]
   },
   "quadroBases": {
     "home": [
       [
-        "André Calçada",
-        "Daniel Marcos",
-        "Fernando Duarte",
-        "João Lamas"
+        "Fernando Baptista",
+        "Hugo Panão",
+        "Luis Branco",
+        "António Melro"
       ],
       [
-        "André Calçada",
-        "Daniel Marcos",
-        "Fernando Duarte",
-        "João Lamas"
+        "Fernando Baptista",
+        "Hugo Panão",
+        "Luis Branco",
+        "António Melro"
       ],
       [
-        "André Calçada",
-        "Daniel Marcos",
-        "Fernando Duarte",
-        "João Lamas"
+        "Fernando Baptista",
+        "Hugo Panão",
+        "Luis Branco",
+        "António Melro"
       ],
       [
-        "André Calçada",
-        "Daniel Marcos",
-        "Fernando Duarte",
-        "João Lamas"
+        "Fernando Baptista",
+        "Hugo Panão",
+        "Luis Branco",
+        "António Melro"
       ]
     ],
     "away": [
       [
-        "Cesar Elias",
-        "Francisco Barros",
-        "Gonçalo Fernandes",
-        "João Simões"
+        "Acácio Silvano",
+        "Jorge Cardeira",
+        "José Carlos",
+        "Pedro Rodrigues"
       ],
       [
-        "Cesar Elias",
-        "Francisco Barros",
-        "Gonçalo Fernandes",
-        "João Simões"
+        "Acácio Silvano",
+        "Jorge Cardeira",
+        "José Carlos",
+        "Pedro Rodrigues"
       ],
       [
-        "Cesar Elias",
-        "Francisco Barros",
-        "Gonçalo Fernandes",
-        "João Simões"
+        "Acácio Silvano",
+        "Jorge Cardeira",
+        "José Carlos",
+        "Pedro Rodrigues"
       ],
       [
-        "Cesar Elias",
-        "Francisco Barros",
-        "Gonçalo Fernandes",
-        "João Simões"
+        "Acácio Silvano",
+        "Jorge Cardeira",
+        "José Carlos",
+        "Pedro Rodrigues"
       ]
     ]
   },
-  "activeQuadroIndex": 2,
+  "activeQuadroIndex": 1,
   "substitutions": {
     "home": [],
     "away": []
@@ -113,69 +112,29 @@
   "queue": [],
   "tables": {
     "1": {
-      "gameId": 4,
-      "gameNumber": 4,
-      "playerHome": "João Lamas",
-      "playerAway": "João Simões",
+      "gameId": 1,
+      "gameNumber": 1,
+      "playerHome": "Fernando Baptista",
+      "playerAway": "Acácio Silvano",
       "scoreHome": 0,
       "scoreAway": 0,
       "history": [],
       "quadroId": 1,
-      "quadroIndex": 4
+      "quadroIndex": 1
     },
     "2": {
-      "gameId": 5,
-      "gameNumber": 5,
-      "playerHome": "André Calçada",
-      "playerAway": "Francisco Barros",
+      "gameId": 2,
+      "gameNumber": 2,
+      "playerHome": "Hugo Panão",
+      "playerAway": "Jorge Cardeira",
       "scoreHome": 0,
       "scoreAway": 0,
       "history": [],
-      "quadroId": 2,
-      "quadroIndex": 1
+      "quadroId": 1,
+      "quadroIndex": 2
     }
   },
-  "history": [
-    {
-      "id": 2,
-      "gameNumber": 2,
-      "table": 2,
-      "playerHome": "Daniel Marcos",
-      "playerAway": "Francisco Barros",
-      "scoreHome": 1,
-      "scoreAway": 0,
-      "winnerSide": "home",
-      "quadroId": 1,
-      "quadroIndex": 2,
-      "finishedAt": "2026-03-16T18:55:17.115Z"
-    },
-    {
-      "id": 1,
-      "gameNumber": 1,
-      "table": 1,
-      "playerHome": "André Calçada",
-      "playerAway": "Cesar Elias",
-      "scoreHome": 1,
-      "scoreAway": 0,
-      "winnerSide": "home",
-      "quadroId": 1,
-      "quadroIndex": 1,
-      "finishedAt": "2026-03-16T18:55:59.542Z"
-    },
-    {
-      "id": 3,
-      "gameNumber": 3,
-      "table": 2,
-      "playerHome": "Fernando Duarte",
-      "playerAway": "Gonçalo Fernandes",
-      "scoreHome": 1,
-      "scoreAway": 0,
-      "winnerSide": "home",
-      "quadroId": 1,
-      "quadroIndex": 3,
-      "finishedAt": "2026-03-16T19:01:24.564Z"
-    }
-  ],
+  "history": [],
   "nextGameId": 1,
   "nextQuadroId": 1
 }

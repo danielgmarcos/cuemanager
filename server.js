@@ -37,11 +37,11 @@ const OBS_OPEN_DIR = path.join(OBS_DIR, "modo_open");
 const DEFAULT_LOGO = path.join(__dirname, "logo.png");
 const DEFAULT_BALL8 = path.join(__dirname, "ball8.svg");
 const OBS_REMOTE_CONFIG = {
-  enabled: parseBoolean(process.env.OBS_REMOTE_ENABLED, false),
+  enabled: parseBoolean(process.env.OBS_REMOTE_ENABLED, true),
   host: process.env.OBS_REMOTE_HOST || "127.0.0.1",
   port: Number.parseInt(process.env.OBS_REMOTE_PORT || "4455", 10),
   password: process.env.OBS_REMOTE_PASSWORD || "",
-  sceneName: process.env.OBS_SCENE_NAME || "Jogo",
+  sceneName: process.env.OBS_SCENE_NAME || "Camp. Mesas Auto",
   cam1Source: process.env.OBS_CAM1_SOURCE || "Cam Mesa 1",
   cam2Source: process.env.OBS_CAM2_SOURCE || "Cam Mesa 2",
   overlaySource: process.env.OBS_OVERLAY_SOURCE || "Overlay Browser",
@@ -49,7 +49,9 @@ const OBS_REMOTE_CONFIG = {
   canvasHeight: Number.parseInt(process.env.OBS_CANVAS_HEIGHT || "1080", 10),
   sponsorSafeHeight: Number.parseInt(process.env.OBS_SPONSOR_SAFE_HEIGHT || "136", 10),
   topSafeHeight: Number.parseInt(process.env.OBS_TOP_SAFE_HEIGHT || "82", 10),
-  outerMargin: Number.parseInt(process.env.OBS_OUTER_MARGIN || "20", 10)
+  outerMargin: Number.parseInt(process.env.OBS_OUTER_MARGIN || "20", 10),
+  layoutTransitionMs: Number.parseInt(process.env.OBS_LAYOUT_TRANSITION_MS || "10000", 10),
+  reconnectMs: Number.parseInt(process.env.OBS_REMOTE_RECONNECT_MS || "5000", 10)
 };
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -119,6 +121,17 @@ function computeRemoteLayout(state) {
   return "scoreboard";
 }
 
+function isSingleRemoteLayout(layout) {
+  return layout === "table1" || layout === "table2";
+}
+
+function requiresDelayedRemoteTransition(fromLayout, toLayout) {
+  return (
+    (fromLayout === "split" && isSingleRemoteLayout(toLayout)) ||
+    (isSingleRemoteLayout(fromLayout) && toLayout === "split")
+  );
+}
+
 class ObsRemoteController {
   constructor(config) {
     this.config = config;
@@ -129,8 +142,13 @@ class ObsRemoteController {
     this.sceneItemIds = new Map();
     this.serial = Promise.resolve();
     this.lastAppliedLayout = null;
+    this.displayLayout = null;
+    this.pendingLayout = null;
+    this.pendingTimer = null;
     this.lastError = null;
     this.lastErrorAt = 0;
+    this.desiredState = null;
+    this.reconnectTimer = null;
     this.rects = computeObsLayoutRects(config);
   }
 
@@ -138,10 +156,15 @@ class ObsRemoteController {
     return {
       enabled: this.config.enabled,
       connected: this.isConnected(),
+      host: this.config.host,
+      port: this.config.port,
+      passwordConfigured: Boolean(this.config.password),
       sceneName: this.config.sceneName,
       cam1Source: this.config.cam1Source,
       cam2Source: this.config.cam2Source,
       overlaySource: this.config.overlaySource,
+      displayLayout: this.displayLayout,
+      pendingLayout: this.pendingLayout,
       lastAppliedLayout: this.lastAppliedLayout,
       lastError: this.lastError
     };
@@ -153,12 +176,69 @@ class ObsRemoteController {
 
   syncState(state) {
     if (!this.config.enabled) return;
-    const layout = computeRemoteLayout(state);
+    this.desiredState = JSON.parse(JSON.stringify(state));
+    const layout = this.resolveDisplayLayout(state);
     this.serial = this.serial
       .then(() => this.applyLayout(layout))
       .catch(err => {
         this.recordError(err);
       });
+  }
+
+  clearPendingTransition() {
+    if (this.pendingTimer) {
+      clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+    this.pendingLayout = null;
+  }
+
+  schedulePendingTransition(layout) {
+    if (this.pendingLayout === layout && this.pendingTimer) return;
+    this.clearPendingTransition();
+    this.pendingLayout = layout;
+    this.pendingTimer = setTimeout(() => {
+      this.pendingTimer = null;
+      this.pendingLayout = null;
+      const latestState = this.desiredState;
+      const finalLayout = latestState ? computeRemoteLayout(latestState) : layout;
+      this.displayLayout = finalLayout;
+
+      if (latestState) {
+        this.syncState(latestState);
+        return;
+      }
+
+      this.serial = this.serial
+        .then(() => this.applyLayout(finalLayout))
+        .catch(err => {
+          this.recordError(err);
+        });
+    }, this.config.layoutTransitionMs);
+  }
+
+  resolveDisplayLayout(state) {
+    const rawLayout = computeRemoteLayout(state);
+
+    if (!this.displayLayout) {
+      this.displayLayout = rawLayout;
+      this.clearPendingTransition();
+      return rawLayout;
+    }
+
+    if (rawLayout === this.displayLayout) {
+      this.clearPendingTransition();
+      return this.displayLayout;
+    }
+
+    if (requiresDelayedRemoteTransition(this.displayLayout, rawLayout)) {
+      this.schedulePendingTransition(rawLayout);
+      return this.displayLayout;
+    }
+
+    this.clearPendingTransition();
+    this.displayLayout = rawLayout;
+    return rawLayout;
   }
 
   recordError(err) {
@@ -225,6 +305,7 @@ class ObsRemoteController {
             settled = true;
             this.ws = ws;
             this.lastError = null;
+            this.sceneItemIds.clear();
             resolve();
             return;
           }
@@ -262,10 +343,41 @@ class ObsRemoteController {
     }
     this.ws = null;
     this.sceneItemIds.clear();
+    this.lastAppliedLayout = null;
+    this.displayLayout = null;
     for (const pending of this.pending.values()) {
       pending.reject(new Error("Ligação ao OBS perdida."));
     }
     this.pending.clear();
+  }
+
+  startBackgroundSync(loadStateFn) {
+    if (!this.config.enabled || this.reconnectTimer) return;
+
+    this.reconnectTimer = setInterval(() => {
+      try {
+        const latestState =
+          this.desiredState ||
+          (typeof loadStateFn === "function" ? loadStateFn() : null);
+
+        if (!latestState) return;
+        this.desiredState = latestState;
+
+        const desiredLayout = this.resolveDisplayLayout(latestState);
+
+        if (this.isConnected() && this.lastAppliedLayout === desiredLayout) {
+          return;
+        }
+
+        this.serial = this.serial
+          .then(() => this.applyLayout(desiredLayout))
+          .catch(err => {
+            this.recordError(err);
+          });
+      } catch (err) {
+        this.recordError(err);
+      }
+    }, this.config.reconnectMs);
   }
 
   buildAuthentication(challenge, salt) {
@@ -835,7 +947,12 @@ app.get("/api/state", (req, res) => {
 });
 
 app.get("/api/obs/status", (req, res) => {
-  res.json(obsRemote.status());
+  const state = loadState();
+  res.json({
+    ...obsRemote.status(),
+    desiredLayout: computeRemoteLayout(state),
+    activeTables: ["1", "2"].filter(tableId => Boolean(state.tables?.[tableId]?.gameId))
+  });
 });
 
 // Set competition
@@ -1188,6 +1305,7 @@ app.post("/api/reset-all", (req, res) => {
 // Reset state and OBS files on server start
 initState();
 clearObsFiles();
+obsRemote.startBackgroundSync(loadState);
 
 app.listen(PORT, () => {
   console.log(`🎱 ADSCR v1.1 backend running at http://localhost:${PORT}`);

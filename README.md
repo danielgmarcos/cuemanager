@@ -68,11 +68,11 @@ O overlay principal está em:
 
 Layouts disponíveis:
 
-- `overlay.html` -> automático
+- `overlay.html` -> automático/dinâmico
+- `overlay_duas_mesas.html` -> duas mesas fixo
+- `overlay_mesa1.html` -> Mesa 1 fixa
+- `overlay_mesa2.html` -> Mesa 2 fixa
 - `overlay.html?layout=scoreboard` -> só marcador
-- `overlay.html?layout=tables` -> só mesas
-- `overlay.html?layout=single&table=1` -> só Mesa 1
-- `overlay.html?layout=single&table=2` -> só Mesa 2
 
 O modo automático decide assim:
 
@@ -114,7 +114,7 @@ Configuração suportada:
 - `OBS_REMOTE_ENABLED` -> `true` para ativar controlo remoto
 - `OBS_REMOTE_HOST` -> por omissão `127.0.0.1`
 - `OBS_REMOTE_PORT` -> por omissão `4455`
-- `OBS_REMOTE_PASSWORD` -> password do WebSocket do OBS
+- `OBS_REMOTE_PASSWORD` -> obrigatório se o WebSocket do OBS tiver password
 - `OBS_SCENE_NAME` -> por omissão `Jogo`
 - `OBS_CAM1_SOURCE` -> por omissão `Cam Mesa 1`
 - `OBS_CAM2_SOURCE` -> por omissão `Cam Mesa 2`
@@ -124,6 +124,7 @@ Configuração suportada:
 - `OBS_TOP_SAFE_HEIGHT` -> por omissão `82`
 - `OBS_SPONSOR_SAFE_HEIGHT` -> por omissão `136`
 - `OBS_OUTER_MARGIN` -> por omissão `20`
+- `OBS_LAYOUT_TRANSITION_MS` -> por omissão `10000` (atraso entre `split` e `full screen`)
 
 ### Windows: exemplo de arranque
 No Windows, antes de arrancar a app:
