@@ -13,6 +13,8 @@
       --text: #f7f7f5;
       --muted: rgba(255, 255, 255, 0.7);
       --accent: #d7d9df;
+      --team-accent-home: #f2f2f2;
+      --team-accent-away: #d3a11d;
       --metal-1: #6e747b;
       --metal-2: #2e3339;
       --metal-3: #a4aab0;
@@ -34,7 +36,7 @@
       min-height: 100%;
       background: transparent;
       color: var(--text);
-      font-family: "Arial Narrow", Arial, sans-serif;
+      font-family: "Bahnschrift Condensed", "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
     }
 
     body {
@@ -79,7 +81,7 @@
       display: grid;
       grid-template-columns: var(--team-width) var(--score-width) var(--team-width);
       align-items: stretch;
-      gap: 18px;
+      gap: 10px;
     }
 
     .team-panel,
@@ -92,13 +94,13 @@
 
     .team-panel {
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.06) 18%, rgba(0, 0, 0, 0.18) 19%, transparent 20%),
-        linear-gradient(180deg, var(--metal-3), var(--metal-2) 42%, #161a1f 58%, var(--metal-1));
-      border-radius: 10px;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.02) 16%, rgba(0, 0, 0, 0.22) 17%, transparent 18%),
+        linear-gradient(180deg, #2d3339, #101318 54%, #2a2f35);
+      border-radius: 8px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
+      gap: 8px;
+      padding: 7px 18px;
       min-width: 0;
       position: relative;
       overflow: hidden;
@@ -108,9 +110,20 @@
       content: "";
       position: absolute;
       inset: 2px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
       pointer-events: none;
+    }
+
+    .team-panel::after {
+      content: "";
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      width: 5px;
+      border-radius: 999px;
+      background: var(--team-accent-home);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--team-accent-home) 55%, transparent);
     }
 
     .team-panel.away {
@@ -118,45 +131,75 @@
       text-align: right;
     }
 
+    .team-panel.home::after {
+      right: 10px;
+    }
+
+    .team-panel.away::after {
+      left: 10px;
+      background: var(--team-accent-away);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--team-accent-away) 55%, transparent);
+    }
+
     .team-logo-wrap {
-      width: 58px;
-      height: 58px;
-      border-radius: 8px;
-      background:
-        linear-gradient(180deg, #8b9197, #20242a 44%, #101317 56%, #6d747b);
-      display: grid;
-      place-items: center;
+      width: 66px;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       flex: 0 0 auto;
-      overflow: hidden;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .team-panel.home .team-logo-wrap {
+      left: 2px;
+    }
+
+    .team-panel.away .team-logo-wrap {
+      right: 2px;
     }
 
     .team-logo {
-      width: 80%;
-      height: 80%;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
-      filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.18));
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
     }
 
     .team-meta {
       min-width: 0;
       display: grid;
       gap: 6px;
+      width: 100%;
+    }
+
+    .team-panel.home .team-meta {
+      padding-left: 62px;
+      padding-right: 20px;
+    }
+
+    .team-panel.away .team-meta {
+      padding-right: 62px;
+      padding-left: 20px;
     }
 
     .team-label {
-      font-size: 13px;
+      font-size: 11px;
       line-height: 1;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       color: rgba(255, 255, 255, 0.78);
     }
 
     .team-name {
-      font-size: clamp(16px, 1.35vw, 24px);
-      line-height: 1.04;
-      font-weight: 700;
-      letter-spacing: 0.01em;
+      font-size: clamp(18px, 1.55vw, 28px);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0.02em;
       text-transform: uppercase;
       white-space: nowrap;
       overflow: hidden;
@@ -167,11 +210,11 @@
     .score-panel {
       border-radius: 8px;
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.05) 20%, rgba(0, 0, 0, 0.18) 21%, transparent 22%),
-        linear-gradient(180deg, #747a81, #252a31 45%, #111418 55%, #636971);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02) 16%, rgba(0, 0, 0, 0.22) 17%, transparent 18%),
+        linear-gradient(180deg, #383f46, #101318 55%, #31373d);
       display: grid;
       place-items: center;
-      padding: 8px 14px 10px;
+      padding: 6px 10px 8px;
       position: relative;
       overflow: hidden;
       clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
@@ -187,7 +230,7 @@
     }
 
     .score-label {
-      font-size: 13px;
+      font-size: 10px;
       line-height: 1;
       letter-spacing: 0.22em;
       text-transform: uppercase;
@@ -199,16 +242,31 @@
       display: flex;
       align-items: baseline;
       justify-content: center;
-      gap: 12px;
-      font-size: clamp(28px, 2.7vw, 44px);
-      font-weight: 700;
+      gap: 8px;
+      font-size: clamp(30px, 2.8vw, 46px);
+      font-weight: 800;
       line-height: 1;
       text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
     }
 
     .score-dash {
-      color: rgba(255, 255, 255, 0.55);
-      font-size: 0.6em;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.5em;
+    }
+
+    .score-pill {
+      min-width: 0.98em;
+      min-height: 1.08em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+      border-radius: 5px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 235, 235, 0.92));
+      color: #050608;
+      line-height: 1;
+      text-shadow: none;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
     }
 
     .middle-space {
@@ -247,10 +305,10 @@
 
     .table-card {
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.05) 18%, rgba(0, 0, 0, 0.18) 19%, transparent 20%),
-        linear-gradient(180deg, #737980, #262b31 45%, #121519 55%, #646a72);
-      border-radius: 10px;
-      padding: 12px 12px 12px;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.03) 16%, rgba(0, 0, 0, 0.22) 17%, transparent 18%),
+        linear-gradient(180deg, #31363d, #0f1217 56%, #2e3339);
+      border-radius: 8px;
+      padding: 12px 16px 12px;
       display: grid;
       gap: 8px;
       align-content: start;
@@ -275,7 +333,7 @@
     }
 
     .table-title {
-      font-size: 13px;
+      font-size: 11px;
       line-height: 1;
       letter-spacing: 0.18em;
       text-transform: uppercase;
@@ -283,12 +341,12 @@
     }
 
     .table-score {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--accent);
-      padding: 4px 9px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
+      font-size: 13px;
+      font-weight: 800;
+      color: #0a0b0d;
+      padding: 3px 8px;
+      border-radius: 5px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 235, 235, 0.92));
       min-width: 60px;
       text-align: center;
       visibility: hidden;
@@ -311,34 +369,55 @@
     }
 
     .player-name {
-      font-size: clamp(15px, 1.08vw, 20px);
-      line-height: 1.06;
-      font-weight: 700;
+      font-size: clamp(17px, 1.35vw, 24px);
+      line-height: 1;
+      font-weight: 800;
       text-transform: uppercase;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       min-width: 0;
+      position: relative;
+      padding-bottom: 6px;
+      padding-left: 6px;
+      padding-right: 6px;
       text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+    }
+
+    .player-name::after {
+      content: "";
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      bottom: 0;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--team-accent-home);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--team-accent-home) 55%, transparent);
     }
 
     .player-name.away {
       text-align: right;
     }
 
+    .player-name.away::after {
+      background: var(--team-accent-away);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--team-accent-away) 55%, transparent);
+    }
+
     .vs-badge {
-      font-size: 13px;
+      font-size: 18px;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: var(--muted);
-      font-weight: 700;
-      padding: 5px 9px;
+      color: rgba(255, 255, 255, 0.96);
+      font-weight: 800;
+      padding: 2px 6px;
       border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: none;
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05) 18%, rgba(0, 0, 0, 0.18) 19%, transparent 20%),
-        linear-gradient(180deg, #70767d, #20252b 46%, #101318 54%, #626871);
-      clip-path: polygon(16% 0%, 84% 0%, 100% 100%, 0% 100%);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 16%, rgba(0, 0, 0, 0.2) 17%, transparent 18%),
+        linear-gradient(180deg, #2f343a, #0d1015 56%, #2d3238);
+      clip-path: polygon(18% 0%, 82% 0%, 100% 100%, 0% 100%);
       text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
     }
 
@@ -374,10 +453,6 @@
 
     .layout-single .table-card.hidden {
       display: none;
-    }
-
-    .layout-single .table-card {
-      min-height: 130px;
     }
 
     .layout-single .player-name {
@@ -457,9 +532,9 @@
       <article class="score-panel">
         <div class="score-label" id="scoreLabel">Resultado</div>
         <div class="score-value">
-          <span id="homeScore">0</span>
+          <span class="score-pill" id="homeScore">0</span>
           <span class="score-dash">-</span>
-          <span id="awayScore">0</span>
+          <span class="score-pill" id="awayScore">0</span>
         </div>
       </article>
 
@@ -504,7 +579,8 @@
 
   <script>
     const REFRESH_MS = 1500;
-    const AUTO_LAYOUT_TRANSITION_MS = 10000;
+    const AUTO_LAYOUT_TO_SINGLE_MS = 10000;
+    const AUTO_LAYOUT_TO_SPLIT_MS = 5000;
     const DEFAULT_LOGO = "logo.png";
     let lastSignature = "";
     let overlayConfig = { layout: "auto", table: "1" };
@@ -572,6 +648,75 @@
       img.src = path;
     }
 
+    function setTeamAccent(side, color) {
+      document.documentElement.style.setProperty(`--team-accent-${side}`, color);
+    }
+
+    function rgbToCss(r, g, b) {
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function extractAccentFromLogo(side, path, fallbackColor) {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const size = 24;
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) {
+          setTeamAccent(side, fallbackColor);
+          return;
+        }
+
+        context.drawImage(img, 0, 0, size, size);
+        const { data } = context.getImageData(0, 0, size, size);
+        let totalR = 0;
+        let totalG = 0;
+        let totalB = 0;
+        let count = 0;
+
+        for (let i = 0; i < data.length; i += 16) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const saturation = max - min;
+          const luminance = (r + g + b) / 3;
+
+          if (a < 120) continue;
+          if (luminance > 240 || luminance < 30) continue;
+          if (saturation < 18) continue;
+
+          totalR += r;
+          totalG += g;
+          totalB += b;
+          count += 1;
+        }
+
+        if (!count) {
+          setTeamAccent(side, fallbackColor);
+          return;
+        }
+
+        setTeamAccent(
+          side,
+          rgbToCss(
+            Math.round(totalR / count),
+            Math.round(totalG / count),
+            Math.round(totalB / count)
+          )
+        );
+      };
+
+      img.onerror = () => {
+        setTeamAccent(side, fallbackColor);
+      };
+      img.src = path;
+    }
+
     function renderTable(tableId, table, isOpenMode) {
       const hasGame = Boolean(table && table.gameId);
       const card = document.getElementById(`table${tableId}Card`);
@@ -624,6 +769,16 @@
       );
     }
 
+    function getAutoTransitionDelay(fromMode, toMode) {
+      if (fromMode === "two" && toMode === "single") {
+        return AUTO_LAYOUT_TO_SINGLE_MS;
+      }
+      if (fromMode === "single" && toMode === "two") {
+        return AUTO_LAYOUT_TO_SPLIT_MS;
+      }
+      return 0;
+    }
+
     function clearPendingAutoTransition() {
       if (autoPendingTimer) {
         clearTimeout(autoPendingTimer);
@@ -643,7 +798,7 @@
       document.getElementById("table2Card").classList.toggle("hidden", mode === "single" && singleTableId !== "2");
     }
 
-    function schedulePendingAutoTransition(target) {
+    function schedulePendingAutoTransition(target, delayMs) {
       if (
         autoPending &&
         autoPending.mode === target.mode &&
@@ -660,7 +815,7 @@
         autoPending = null;
         autoDisplay = getRawAutoLayout(latestAutoTables || {});
         applyDisplayedAutoLayout();
-      }, AUTO_LAYOUT_TRANSITION_MS);
+      }, delayMs);
     }
 
     function applyAutoLayout(tables) {
@@ -685,7 +840,7 @@
       }
 
       if (requiresDelayedAutoTransition(autoDisplay.mode, raw.mode)) {
-        schedulePendingAutoTransition(raw);
+        schedulePendingAutoTransition(raw, getAutoTransitionDelay(autoDisplay.mode, raw.mode));
         applyDisplayedAutoLayout();
         return;
       }
@@ -722,8 +877,20 @@
       document.getElementById("scoreLabel").textContent = viewMode === "open" ? "Classificacao" : "Resultado";
 
       const version = encodeURIComponent(`${Date.now()}-${home.name || ""}-${away.name || ""}`);
-      updateLogo(document.getElementById("homeLogo"), buildLogoPath(viewMode, "casa", version));
-      updateLogo(document.getElementById("awayLogo"), buildLogoPath(viewMode, "visitante", version));
+      const homeLogoPath = buildLogoPath(viewMode, "casa", version);
+      const awayLogoPath = buildLogoPath(viewMode, "visitante", version);
+      updateLogo(document.getElementById("homeLogo"), homeLogoPath);
+      updateLogo(document.getElementById("awayLogo"), awayLogoPath);
+      if (home.accentColor) {
+        setTeamAccent("home", home.accentColor);
+      } else {
+        extractAccentFromLogo("home", homeLogoPath, "#f2f2f2");
+      }
+      if (away.accentColor) {
+        setTeamAccent("away", away.accentColor);
+      } else {
+        extractAccentFromLogo("away", awayLogoPath, "#d3a11d");
+      }
 
       renderTable("1", tables["1"], viewMode === "open");
       renderTable("2", tables["2"], viewMode === "open");

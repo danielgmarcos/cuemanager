@@ -10,6 +10,12 @@
 const $ = id => document.getElementById(id);
 const LOGO_HOME = "logo.png";
 const LOGO_AWAY = "ball8.svg";
+const DEFAULT_TEAM_ACCENTS = {
+  home: "#f2f2f2",
+  away: "#d3a11d"
+};
+const YOUTUBE_LIVE_URL_KEY = "youtubeLiveUrl";
+const OBS_STATUS_REFRESH_MS = 5000;
 
 // STATE (loaded from server)
 let state = null;
@@ -47,6 +53,71 @@ function showReopenBanner() {
   }, 6000);
 }
 
+function setupBroadcastControls() {
+  const youtubeInput = $("youtubeLiveUrl");
+  const shareBtn = $("shareFacebookBtn");
+
+  if (youtubeInput) {
+    youtubeInput.value = localStorage.getItem(YOUTUBE_LIVE_URL_KEY) || "";
+    youtubeInput.addEventListener("input", () => {
+      localStorage.setItem(YOUTUBE_LIVE_URL_KEY, youtubeInput.value.trim());
+    });
+  }
+
+  if (shareBtn) {
+    shareBtn.addEventListener("click", () => {
+      const url = youtubeInput?.value?.trim() || "";
+      if (!/^https?:\/\//i.test(url)) {
+        showToast("Introduz um URL válido da live no YouTube.", "warning");
+        youtubeInput?.focus();
+        return;
+      }
+
+      const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+      window.open(shareUrl, "_blank", "noopener,noreferrer,width=900,height=700");
+    });
+  }
+}
+
+async function refreshObsStatus() {
+  const pill = $("obsStatusPill");
+  const meta = $("obsStatusMeta");
+  const error = $("obsStatusError");
+  if (!pill || !meta || !error) return;
+
+  try {
+    const response = await fetch("/api/obs/status", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    pill.classList.remove("is-ok", "is-error");
+    if (data.connected) {
+      pill.classList.add("is-ok");
+      pill.textContent = "OBS ligado";
+    } else {
+      pill.classList.add("is-error");
+      pill.textContent = data.enabled ? "OBS desligado" : "OBS remoto desativado";
+    }
+
+    meta.textContent = `Host ${data.host || "-"}:${data.port || "-"} · Layout ${data.displayLayout || data.desiredLayout || "-"}`;
+
+    if (data.lastError) {
+      error.textContent = data.lastError;
+      error.classList.remove("d-none");
+    } else {
+      error.textContent = "";
+      error.classList.add("d-none");
+    }
+  } catch (err) {
+    pill.classList.remove("is-ok");
+    pill.classList.add("is-error");
+    pill.textContent = "Falha a verificar OBS";
+    meta.textContent = "Sem resposta do portal.";
+    error.textContent = err.message || "Erro desconhecido.";
+    error.classList.remove("d-none");
+  }
+}
+
 // -----------------------------------------------------------------------------
 // INITIAL LOAD
 // -----------------------------------------------------------------------------
@@ -55,11 +126,14 @@ window.addEventListener("load", async () => {
   setupModeHandlers();
   setupResetButton();
   setupTeamNameMirroring(); 
-  setupViewModeToggle();    
+  setupViewModeToggle();
+  setupBroadcastControls();
   setupScoreSync();
   setupQuadroHandlers();
   setupQuadroDragDrop();
   await loadState();
+  refreshObsStatus();
+  setInterval(refreshObsStatus, OBS_STATUS_REFRESH_MS);
   syncHistoryHeight();
 });
 
@@ -72,6 +146,8 @@ window.addEventListener("resize", () => {
 // -----------------------------------------------------------------------------
 function applyState(newState) {
   state = newState;
+  state.teams.home.accentColor ||= DEFAULT_TEAM_ACCENTS.home;
+  state.teams.away.accentColor ||= DEFAULT_TEAM_ACCENTS.away;
   viewMode = state.viewMode === "open" ? "open" : "teams";
   const toggle = $("modeToggle");
   toggle.checked = viewMode === "open";
@@ -88,6 +164,7 @@ function applyState(newState) {
   populatePlayerDropdowns();
   renderQuadroSelectors();
   updateTeamLogos();
+  renderAccentColorInputs();
   renderQueue();
   renderTables();
   renderHistory();
@@ -465,12 +542,14 @@ async function selectPortalTeam(side) {
   state.teams[side].name = teamName;
   state.teams[side].players = data.players;
   state.teams[side].logoUrl = data.logoUrl || null;
+  state.teams[side].accentColor = normalizeAccentColor(state.teams[side].accentColor, side);
 
   // Update all dependent UI
   renderPlayers();
   populatePlayerDropdowns(); // THIS WILL NOW WORK
 
   updateTeamLogos();
+  renderAccentColorInputs();
 
   syncTeamsToServer();
   updateGuidance();
@@ -493,6 +572,49 @@ function setupModeHandlers() {
   $("homeManualPlayers").addEventListener("input", () => applyManualSide("home"));
   $("awayManualName").addEventListener("input", () => applyManualSide("away"));
   $("awayManualPlayers").addEventListener("input", () => applyManualSide("away"));
+  document.querySelectorAll(".accent-option").forEach(button => {
+    button.addEventListener("click", () => {
+      applyAccentColor(button.dataset.side, button.dataset.color);
+    });
+  });
+}
+
+function normalizeAccentColor(value, side) {
+  const color = String(value || "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(color) ? color : DEFAULT_TEAM_ACCENTS[side];
+}
+
+function renderAccentColorInputs() {
+  const homeColor = normalizeAccentColor(state?.teams?.home?.accentColor, "home");
+  const awayColor = normalizeAccentColor(state?.teams?.away?.accentColor, "away");
+
+  [
+    $("homeAccentSwatch"),
+    $("homeHeaderAccentSwatch")
+  ].filter(Boolean).forEach(el => {
+    el.style.backgroundColor = homeColor;
+  });
+
+  [
+    $("awayAccentSwatch"),
+    $("awayHeaderAccentSwatch")
+  ].filter(Boolean).forEach(el => {
+    el.style.backgroundColor = awayColor;
+  });
+
+  document.querySelectorAll('.accent-option[data-side="home"]').forEach(button => {
+    button.classList.toggle("is-active", button.dataset.color === homeColor);
+  });
+  document.querySelectorAll('.accent-option[data-side="away"]').forEach(button => {
+    button.classList.toggle("is-active", button.dataset.color === awayColor);
+  });
+}
+
+function applyAccentColor(side, color) {
+  if (!state?.teams?.[side]) return;
+  state.teams[side].accentColor = normalizeAccentColor(color, side);
+  renderAccentColorInputs();
+  syncTeamsToServer();
 }
 
 function getTeamsMode() {
@@ -553,7 +675,8 @@ function applyManualSide(side) {
     name,
     players,
     score: state.teams[side].score,
-    logoUrl: side === "home" ? "__logo__" : "__ball8__"
+    logoUrl: side === "home" ? "__logo__" : "__ball8__",
+    accentColor: normalizeAccentColor(state.teams[side].accentColor, side)
   };
 
   if (side === "home") $("homeTeamName").textContent = name;
@@ -563,6 +686,7 @@ function applyManualSide(side) {
   renderPlayers();
   populatePlayerDropdowns();
   updateTeamLogos();
+  renderAccentColorInputs();
   syncTeamsToServer();
   updateGuidance();
 }

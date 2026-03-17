@@ -50,7 +50,8 @@ const OBS_REMOTE_CONFIG = {
   sponsorSafeHeight: Number.parseInt(process.env.OBS_SPONSOR_SAFE_HEIGHT || "136", 10),
   topSafeHeight: Number.parseInt(process.env.OBS_TOP_SAFE_HEIGHT || "82", 10),
   outerMargin: Number.parseInt(process.env.OBS_OUTER_MARGIN || "20", 10),
-  layoutTransitionMs: Number.parseInt(process.env.OBS_LAYOUT_TRANSITION_MS || "10000", 10),
+  layoutToSingleMs: Number.parseInt(process.env.OBS_LAYOUT_TO_SINGLE_MS || "10000", 10),
+  layoutToSplitMs: Number.parseInt(process.env.OBS_LAYOUT_TO_SPLIT_MS || "5000", 10),
   reconnectMs: Number.parseInt(process.env.OBS_REMOTE_RECONNECT_MS || "5000", 10)
 };
 
@@ -60,6 +61,30 @@ fs.mkdirSync(OBS_COMP_DIR, { recursive: true });
 fs.mkdirSync(OBS_OPEN_DIR, { recursive: true });
 
 const STATE_FILE = path.join(DATA_DIR, "state.json");
+
+function defaultAccentColor(side) {
+  return side === "home" ? "#f2f2f2" : "#d3a11d";
+}
+
+function normalizeTeam(team, side) {
+  const current = team || {};
+  return {
+    id: current.id ?? null,
+    name: current.name ?? "",
+    players: Array.isArray(current.players) ? current.players : [],
+    score: Number.isFinite(current.score) ? current.score : 0,
+    logoUrl: current.logoUrl ?? null,
+    accentColor: current.accentColor || defaultAccentColor(side)
+  };
+}
+
+function normalizeStateShape(state) {
+  const current = state || {};
+  current.teams ||= {};
+  current.teams.home = normalizeTeam(current.teams.home, "home");
+  current.teams.away = normalizeTeam(current.teams.away, "away");
+  return current;
+}
 
 function parseBoolean(value, defaultValue = false) {
   if (value == null) return defaultValue;
@@ -132,6 +157,16 @@ function requiresDelayedRemoteTransition(fromLayout, toLayout) {
   );
 }
 
+function getRemoteTransitionDelay(config, fromLayout, toLayout) {
+  if (fromLayout === "split" && isSingleRemoteLayout(toLayout)) {
+    return config.layoutToSingleMs;
+  }
+  if (isSingleRemoteLayout(fromLayout) && toLayout === "split") {
+    return config.layoutToSplitMs;
+  }
+  return 0;
+}
+
 class ObsRemoteController {
   constructor(config) {
     this.config = config;
@@ -193,7 +228,7 @@ class ObsRemoteController {
     this.pendingLayout = null;
   }
 
-  schedulePendingTransition(layout) {
+  schedulePendingTransition(layout, delayMs) {
     if (this.pendingLayout === layout && this.pendingTimer) return;
     this.clearPendingTransition();
     this.pendingLayout = layout;
@@ -214,7 +249,7 @@ class ObsRemoteController {
         .catch(err => {
           this.recordError(err);
         });
-    }, this.config.layoutTransitionMs);
+    }, delayMs);
   }
 
   resolveDisplayLayout(state) {
@@ -232,7 +267,10 @@ class ObsRemoteController {
     }
 
     if (requiresDelayedRemoteTransition(this.displayLayout, rawLayout)) {
-      this.schedulePendingTransition(rawLayout);
+      this.schedulePendingTransition(
+        rawLayout,
+        getRemoteTransitionDelay(this.config, this.displayLayout, rawLayout)
+      );
       return this.displayLayout;
     }
 
@@ -502,8 +540,8 @@ const obsRemote = new ObsRemoteController(OBS_REMOTE_CONFIG);
 function initState() {
   const initial = {
     teams: {
-      home: { id: null, name: "", players: [], score: 0, logoUrl: null },
-      away: { id: null, name: "", players: [], score: 0, logoUrl: null }
+      home: { id: null, name: "", players: [], score: 0, logoUrl: null, accentColor: defaultAccentColor("home") },
+      away: { id: null, name: "", players: [], score: 0, logoUrl: null, accentColor: defaultAccentColor("away") }
     },
     viewMode: "teams",
     competitionId: null,
@@ -547,7 +585,7 @@ function loadState() {
   if (!fs.existsSync(STATE_FILE)) {
     return initState();
   }
-  return JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+  return normalizeStateShape(JSON.parse(fs.readFileSync(STATE_FILE, "utf8")));
 }
 
 function saveState(state) {
@@ -1043,8 +1081,8 @@ app.post("/api/set-teams", async (req, res) => {
   const prevHomeLogo = state.teams.home.logoUrl;
   const prevAwayLogo = state.teams.away.logoUrl;
 
-  state.teams.home = req.body.home || state.teams.home;
-  state.teams.away = req.body.away || state.teams.away;
+  state.teams.home = normalizeTeam(req.body.home || state.teams.home, "home");
+  state.teams.away = normalizeTeam(req.body.away || state.teams.away, "away");
   saveState(state);
 
   try {

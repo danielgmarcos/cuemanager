@@ -554,6 +554,84 @@
       color: #dc3545;
     }
 
+    .accent-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      display: inline-block;
+      flex: 0 0 auto;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+      background: #d9d9d9;
+    }
+
+    .accent-palette {
+      display: inline-flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .accent-option {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 2px solid rgba(0, 0, 0, 0.18);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .accent-option:hover {
+      transform: scale(1.05);
+    }
+
+    .accent-option.is-active {
+      border-color: #111827;
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.18);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      background: #eef2f7;
+      color: #334155;
+      border: 1px solid #d7dbe2;
+    }
+
+    .status-pill::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #94a3b8;
+    }
+
+    .status-pill.is-ok {
+      background: #e7f7ee;
+      color: #166534;
+      border-color: #b7e1c6;
+    }
+
+    .status-pill.is-ok::before {
+      background: #22c55e;
+    }
+
+    .status-pill.is-error {
+      background: #fdeaea;
+      color: #991b1b;
+      border-color: #f3c2c7;
+    }
+
+    .status-pill.is-error::before {
+      background: #ef4444;
+    }
+
   </style>
 </head>
 
@@ -579,18 +657,51 @@
     Jogo reaberto.
   </div>
 
-    <!-- TEAMS & SCORE -->
-    <div class="card shadow-sm mb-4" id="teamsCard">
+    <div class="card shadow-sm mb-4" id="controlsCard">
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-          <h4 class="section-title m-0">Equipas</h4>
-          <div class="d-flex align-items-center gap-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+          <h4 class="section-title m-0">Controlo e Transmissão</h4>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
             <div class="form-check form-switch m-0">
               <input class="form-check-input" type="checkbox" id="modeToggle">
               <label class="form-check-label" for="modeToggle">Modo Open</label>
             </div>
             <button class="btn btn-success" id="resetAllBtn">🔄 Começar de Novo</button>
           </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <h6 class="fw-bold mb-2">Estado OBS</h6>
+            <div id="obsStatusPill" class="status-pill">A verificar ligação</div>
+            <div class="small text-muted mt-2" id="obsStatusMeta">Sem dados ainda.</div>
+            <div class="small text-danger mt-1 d-none" id="obsStatusError"></div>
+          </div>
+
+          <div class="col-lg-8">
+            <h6 class="fw-bold mb-2">Partilha</h6>
+            <div class="row g-2 align-items-end">
+              <div class="col-md-8">
+                <label class="form-label small fw-semibold" for="youtubeLiveUrl">URL live YouTube</label>
+                <input id="youtubeLiveUrl" class="form-control" type="url" placeholder="https://www.youtube.com/live/... ou https://youtube.com/watch?v=..." />
+              </div>
+              <div class="col-md-4 d-grid">
+                <button class="btn btn-primary" id="shareFacebookBtn" type="button">Partilhar no Facebook</button>
+              </div>
+            </div>
+            <div class="small text-muted mt-2">
+              Abre a janela de partilha do Facebook com o link da live do YouTube.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEAMS & SCORE -->
+    <div class="card shadow-sm mb-4" id="teamsCard">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+          <h4 class="section-title m-0">Equipas</h4>
         </div>
         <div id="teamsForm">
           <div class="d-flex gap-3 mb-2">
@@ -621,6 +732,7 @@
           <div class="col-md-6">
             <div class="d-flex align-items-center gap-2 mb-2">
               <img id="homeTeamLogo" src="logo.png" alt="Locais" style="height:36px;width:36px;object-fit:contain" />
+              <span id="homeAccentSwatch" class="accent-swatch" title="Cor destaque locais"></span>
               <h5 class="mb-0">Locais</h5>
             </div>
 
@@ -631,6 +743,18 @@
             <input id="homeManualName" class="form-control form-control-lg mb-2 d-none" placeholder="Nome equipa locais" />
             <textarea id="homeManualPlayers" class="form-control d-none" rows="4"
               placeholder="Jogadores locais (um por linha)"></textarea>
+            <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+              <label class="form-label m-0 small fw-semibold">Cor destaque transmissão</label>
+              <div id="homeAccentPalette" class="accent-palette">
+                <button type="button" class="accent-option" data-side="home" data-color="#f2f2f2" style="background:#f2f2f2" title="Branco"></button>
+                <button type="button" class="accent-option" data-side="home" data-color="#d3a11d" style="background:#d3a11d" title="Ouro"></button>
+                <button type="button" class="accent-option" data-side="home" data-color="#38bdf8" style="background:#38bdf8" title="Azul gelo"></button>
+                <button type="button" class="accent-option" data-side="home" data-color="#ef4444" style="background:#ef4444" title="Vermelho"></button>
+                <button type="button" class="accent-option" data-side="home" data-color="#22c55e" style="background:#22c55e" title="Verde"></button>
+                <button type="button" class="accent-option" data-side="home" data-color="#fb923c" style="background:#fb923c" title="Laranja"></button>
+                <button type="button" class="accent-option" data-side="home" data-color="#cbd5e1" style="background:#cbd5e1" title="Prata"></button>
+              </div>
+            </div>
 
             <!-- PLAYER LIST -->
             <div id="homePlayersPanel" class="players-panel players-collapsed mt-3">
@@ -656,6 +780,7 @@
           <div class="col-md-6">
             <div class="d-flex align-items-center gap-2 mb-2">
               <img id="awayTeamLogo" src="logo.png" alt="Visitantes" style="height:36px;width:36px;object-fit:contain" />
+              <span id="awayAccentSwatch" class="accent-swatch" title="Cor destaque visitantes"></span>
               <h5 class="mb-0">Visitantes</h5>
             </div>
 
@@ -666,6 +791,18 @@
             <input id="awayManualName" class="form-control form-control-lg mb-2 d-none" placeholder="Nome equipa visitantes" />
             <textarea id="awayManualPlayers" class="form-control d-none" rows="4"
               placeholder="Jogadores visitantes (um por linha)"></textarea>
+            <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+              <label class="form-label m-0 small fw-semibold">Cor destaque transmissão</label>
+              <div id="awayAccentPalette" class="accent-palette">
+                <button type="button" class="accent-option" data-side="away" data-color="#f2f2f2" style="background:#f2f2f2" title="Branco"></button>
+                <button type="button" class="accent-option" data-side="away" data-color="#d3a11d" style="background:#d3a11d" title="Ouro"></button>
+                <button type="button" class="accent-option" data-side="away" data-color="#38bdf8" style="background:#38bdf8" title="Azul gelo"></button>
+                <button type="button" class="accent-option" data-side="away" data-color="#ef4444" style="background:#ef4444" title="Vermelho"></button>
+                <button type="button" class="accent-option" data-side="away" data-color="#22c55e" style="background:#22c55e" title="Verde"></button>
+                <button type="button" class="accent-option" data-side="away" data-color="#fb923c" style="background:#fb923c" title="Laranja"></button>
+                <button type="button" class="accent-option" data-side="away" data-color="#cbd5e1" style="background:#cbd5e1" title="Prata"></button>
+              </div>
+            </div>
 
             <!-- PLAYER LIST -->
             <div id="awayPlayersPanel" class="players-panel players-collapsed mt-3">
@@ -735,6 +872,7 @@
             <div class="quadro-scoreline mb-3">
               <div class="d-flex align-items-center gap-2 flex-grow-1">
                 <img id="homeScoreLogo" src="logo.png" alt="Equipa A" style="height:28px;width:28px;object-fit:contain" />
+                <span id="homeHeaderAccentSwatch" class="accent-swatch" title="Cor destaque locais"></span>
                 <h4 id="homeTeamName" class="m-0 team-name">Equipa A</h4>
               </div>
 
@@ -750,6 +888,7 @@
 
               <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
                 <h4 id="awayTeamName" class="m-0 team-name">Equipa B</h4>
+                <span id="awayHeaderAccentSwatch" class="accent-swatch" title="Cor destaque visitantes"></span>
                 <img id="awayScoreLogo" src="logo.png" alt="Equipa B" style="height:28px;width:28px;object-fit:contain" />
               </div>
             </div>

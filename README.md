@@ -124,7 +124,8 @@ Configuração suportada:
 - `OBS_TOP_SAFE_HEIGHT` -> por omissão `82`
 - `OBS_SPONSOR_SAFE_HEIGHT` -> por omissão `136`
 - `OBS_OUTER_MARGIN` -> por omissão `20`
-- `OBS_LAYOUT_TRANSITION_MS` -> por omissão `10000` (atraso entre `split` e `full screen`)
+- `OBS_LAYOUT_TO_SINGLE_MS` -> por omissão `10000` (de `split` para `full screen`)
+- `OBS_LAYOUT_TO_SPLIT_MS` -> por omissão `5000` (de `full screen` para `split`)
 
 ### Windows: exemplo de arranque
 No Windows, antes de arrancar a app:

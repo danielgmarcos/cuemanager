@@ -1,103 +1,50 @@
 {
   "teams": {
     "home": {
-      "id": "EQP7069",
-      "name": "ACSDR Valada-Atadoa-Atadoinha - A",
-      "players": [
-        "António Melro",
-        "Fernando Baptista",
-        "Hugo Panão",
-        "Luis Branco",
-        "Mário Miguel",
-        "Pedro Caridade",
-        "Tiago Galvão"
-      ],
+      "id": null,
+      "name": "",
+      "players": [],
       "score": 0,
-      "logoUrl": "https://portalbilhar.pt/Imagens/Clubes/06ACSDRV.jpeg"
+      "logoUrl": null,
+      "accentColor": "#f2f2f2"
     },
     "away": {
-      "id": "EQP7070",
-      "name": "AD S. Mamede - A",
-      "players": [
-        "Acácio Silvano",
-        "Jorge Cardeira",
-        "José Carlos",
-        "Nuno Gomes",
-        "Pedro Rodrigues",
-        "Teresa Queirós"
-      ],
+      "id": null,
+      "name": "",
+      "players": [],
       "score": 0,
-      "logoUrl": "https://portalbilhar.pt/Imagens/Clubes/06ADSMAM.png"
+      "logoUrl": null,
+      "accentColor": "#d3a11d"
     }
   },
   "viewMode": "teams",
-  "competitionId": "cPPPPT0164-25",
+  "competitionId": null,
   "quadroSelections": {
     "home": [
-      "Fernando Baptista",
-      "Hugo Panão",
-      "Luis Branco",
-      "António Melro"
+      "",
+      "",
+      "",
+      ""
     ],
     "away": [
-      "Acácio Silvano",
-      "Jorge Cardeira",
-      "José Carlos",
-      "Pedro Rodrigues"
+      "",
+      "",
+      "",
+      ""
     ]
   },
   "quadroBases": {
     "home": [
-      [
-        "Fernando Baptista",
-        "Hugo Panão",
-        "Luis Branco",
-        "António Melro"
-      ],
-      [
-        "Fernando Baptista",
-        "Hugo Panão",
-        "Luis Branco",
-        "António Melro"
-      ],
-      [
-        "Fernando Baptista",
-        "Hugo Panão",
-        "Luis Branco",
-        "António Melro"
-      ],
-      [
-        "Fernando Baptista",
-        "Hugo Panão",
-        "Luis Branco",
-        "António Melro"
-      ]
+      [],
+      [],
+      [],
+      []
     ],
     "away": [
-      [
-        "Acácio Silvano",
-        "Jorge Cardeira",
-        "José Carlos",
-        "Pedro Rodrigues"
-      ],
-      [
-        "Acácio Silvano",
-        "Jorge Cardeira",
-        "José Carlos",
-        "Pedro Rodrigues"
-      ],
-      [
-        "Acácio Silvano",
-        "Jorge Cardeira",
-        "José Carlos",
-        "Pedro Rodrigues"
-      ],
-      [
-        "Acácio Silvano",
-        "Jorge Cardeira",
-        "José Carlos",
-        "Pedro Rodrigues"
-      ]
+      [],
+      [],
+      [],
+      []
     ]
   },
   "activeQuadroIndex": 1,
@@ -106,32 +53,27 @@
     "away": []
   },
   "locks": {
-    "quadro1Locked": true,
-    "subsLocked": false
+    "quadro1Locked": false,
+    "subsLocked": false,
+    "quadroPlayableId": null
   },
   "queue": [],
   "tables": {
     "1": {
-      "gameId": 1,
-      "gameNumber": 1,
-      "playerHome": "Fernando Baptista",
-      "playerAway": "Acácio Silvano",
+      "gameId": null,
+      "playerHome": "",
+      "playerAway": "",
       "scoreHome": 0,
       "scoreAway": 0,
-      "history": [],
-      "quadroId": 1,
-      "quadroIndex": 1
+      "history": []
     },
     "2": {
-      "gameId": 2,
-      "gameNumber": 2,
-      "playerHome": "Hugo Panão",
-      "playerAway": "Jorge Cardeira",
+      "gameId": null,
+      "playerHome": "",
+      "playerAway": "",
       "scoreHome": 0,
       "scoreAway": 0,
-      "history": [],
-      "quadroId": 1,
-      "quadroIndex": 2
+      "history": []
     }
   },
   "history": [],
