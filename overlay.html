@@ -296,11 +296,23 @@
       filter: grayscale(1);
     }
 
+    .tables-stage {
+      display: grid;
+      align-items: end;
+      justify-items: center;
+      width: 100%;
+      min-height: 0;
+    }
+
+    .tables-shell {
+      width: min(1480px, 100%);
+    }
+
     .tables {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 18px;
-      align-self: end;
+      width: 100%;
     }
 
     .table-card {
@@ -430,7 +442,7 @@
       padding: 8px 6px 4px;
     }
 
-    .layout-scoreboard .tables,
+    .layout-scoreboard .tables-stage,
     .layout-scoreboard .brand-chip {
       display: none;
     }
@@ -444,11 +456,12 @@
       display: none;
     }
 
+    .layout-single .tables-shell {
+      width: min(1080px, 100%);
+    }
+
     .layout-single .tables {
       grid-template-columns: 1fr;
-      max-width: min(960px, 100%);
-      justify-self: center;
-      width: 100%;
     }
 
     .layout-single .table-card.hidden {
@@ -465,34 +478,6 @@
 
     .layout-scoreboard .overlay {
       grid-template-rows: auto 1fr;
-    }
-
-    .layout-auto.auto-scoreboard .tables,
-    .layout-auto.auto-scoreboard .brand-chip {
-      display: none;
-    }
-
-    .layout-auto.auto-single .brand-chip {
-      display: none;
-    }
-
-    .layout-auto.auto-single .tables {
-      grid-template-columns: 1fr;
-      max-width: min(960px, 100%);
-      justify-self: center;
-      width: 100%;
-    }
-
-    .layout-auto.auto-single .table-card.hidden {
-      display: none;
-    }
-
-    .layout-auto.auto-single .table-card {
-      min-height: 130px;
-    }
-
-    .layout-auto.auto-single .player-name {
-      font-size: clamp(18px, 1.5vw, 24px);
     }
 
     @media (max-width: 1200px) {
@@ -516,7 +501,7 @@
     }
   </style>
 </head>
-<body class="layout-auto auto-two">
+<body class="layout-tables">
   <main class="overlay">
     <section class="scoreboard" aria-label="Marcador">
       <article class="team-panel home">
@@ -549,45 +534,43 @@
       </article>
     </section>
 
-    <section class="tables" aria-label="Mesas">
-      <article class="table-card" id="table1Card">
-        <header class="table-header">
-          <div class="table-title">Mesa 1</div>
-          <div class="table-score" id="table1Score"></div>
-        </header>
-        <div class="players" id="table1Players">
-          <div class="player-name home" id="table1Home">Jogador 1</div>
-          <div class="vs-badge">VS</div>
-          <div class="player-name away" id="table1Away">Jogador 2</div>
-        </div>
-      </article>
+    <section class="tables-stage" aria-label="Mesas">
+      <div class="tables-shell">
+        <section class="tables">
+          <article class="table-card" id="table1Card">
+            <header class="table-header">
+              <div class="table-title">Mesa 1</div>
+              <div class="table-score" id="table1Score"></div>
+            </header>
+            <div class="players" id="table1Players">
+              <div class="player-name home" id="table1Home">Jogador 1</div>
+              <div class="vs-badge">VS</div>
+              <div class="player-name away" id="table1Away">Jogador 2</div>
+            </div>
+          </article>
 
-      <article class="table-card" id="table2Card">
-        <header class="table-header">
-          <div class="table-title">Mesa 2</div>
-          <div class="table-score" id="table2Score"></div>
-        </header>
-        <div class="players" id="table2Players">
-          <div class="player-name home" id="table2Home">Jogador 1</div>
-          <div class="vs-badge">VS</div>
-          <div class="player-name away" id="table2Away">Jogador 2</div>
-        </div>
-      </article>
+          <article class="table-card" id="table2Card">
+            <header class="table-header">
+              <div class="table-title">Mesa 2</div>
+              <div class="table-score" id="table2Score"></div>
+            </header>
+            <div class="players" id="table2Players">
+              <div class="player-name home" id="table2Home">Jogador 1</div>
+              <div class="vs-badge">VS</div>
+              <div class="player-name away" id="table2Away">Jogador 2</div>
+            </div>
+          </article>
+        </section>
+      </div>
     </section>
 
   </main>
 
   <script>
     const REFRESH_MS = 1500;
-    const AUTO_LAYOUT_TO_SINGLE_MS = 10000;
-    const AUTO_LAYOUT_TO_SPLIT_MS = 5000;
     const DEFAULT_LOGO = "logo.png";
     let lastSignature = "";
-    let overlayConfig = { layout: "auto", table: "1" };
-    let autoDisplay = { mode: null, table: "1" };
-    let autoPending = null;
-    let autoPendingTimer = null;
-    let latestAutoTables = null;
+    let overlayConfig = { layout: "tables", table: "1" };
 
     function text(value, fallback) {
       return String(value || "").trim() || fallback;
@@ -610,25 +593,21 @@
 
     function setLayout() {
       const params = new URLSearchParams(window.location.search);
-      const layout = (params.get("layout") || "auto").toLowerCase();
+      const layout = (params.get("layout") || "tables").toLowerCase();
       const table = params.get("table") === "2" ? "2" : "1";
       overlayConfig = { layout, table };
       document.body.classList.remove(
-        "layout-auto",
         "layout-full",
         "layout-scoreboard",
         "layout-tables",
-        "layout-single",
-        "auto-two",
-        "auto-single",
-        "auto-scoreboard"
+        "layout-single"
       );
       if (layout === "scoreboard" || layout === "tables" || layout === "single") {
         document.body.classList.add(`layout-${layout}`);
       } else if (layout === "full") {
         document.body.classList.add("layout-full");
       } else {
-        document.body.classList.add("layout-auto", "auto-two");
+        document.body.classList.add("layout-tables");
       }
 
       document.getElementById("table1Card").classList.toggle("hidden", layout === "single" && table !== "1");
@@ -747,109 +726,6 @@
       }
     }
 
-    function getActiveTableIds(tables) {
-      return ["1", "2"].filter(tableId => Boolean(tables?.[tableId]?.gameId));
-    }
-
-    function getRawAutoLayout(tables) {
-      const activeTableIds = getActiveTableIds(tables);
-      if (activeTableIds.length >= 2) {
-        return { mode: "two", table: overlayConfig.table };
-      }
-      if (activeTableIds.length === 1) {
-        return { mode: "single", table: activeTableIds[0] };
-      }
-      return { mode: "scoreboard", table: overlayConfig.table };
-    }
-
-    function requiresDelayedAutoTransition(fromMode, toMode) {
-      return (
-        (fromMode === "two" && toMode === "single") ||
-        (fromMode === "single" && toMode === "two")
-      );
-    }
-
-    function getAutoTransitionDelay(fromMode, toMode) {
-      if (fromMode === "two" && toMode === "single") {
-        return AUTO_LAYOUT_TO_SINGLE_MS;
-      }
-      if (fromMode === "single" && toMode === "two") {
-        return AUTO_LAYOUT_TO_SPLIT_MS;
-      }
-      return 0;
-    }
-
-    function clearPendingAutoTransition() {
-      if (autoPendingTimer) {
-        clearTimeout(autoPendingTimer);
-        autoPendingTimer = null;
-      }
-      autoPending = null;
-    }
-
-    function applyDisplayedAutoLayout() {
-      const mode = autoDisplay.mode || "two";
-      const singleTableId = autoDisplay.table || overlayConfig.table;
-
-      document.body.classList.remove("auto-two", "auto-single", "auto-scoreboard");
-      document.body.classList.add(`auto-${mode}`);
-
-      document.getElementById("table1Card").classList.toggle("hidden", mode === "single" && singleTableId !== "1");
-      document.getElementById("table2Card").classList.toggle("hidden", mode === "single" && singleTableId !== "2");
-    }
-
-    function schedulePendingAutoTransition(target, delayMs) {
-      if (
-        autoPending &&
-        autoPending.mode === target.mode &&
-        autoPending.table === target.table &&
-        autoPendingTimer
-      ) {
-        return;
-      }
-
-      clearPendingAutoTransition();
-      autoPending = target;
-      autoPendingTimer = setTimeout(() => {
-        autoPendingTimer = null;
-        autoPending = null;
-        autoDisplay = getRawAutoLayout(latestAutoTables || {});
-        applyDisplayedAutoLayout();
-      }, delayMs);
-    }
-
-    function applyAutoLayout(tables) {
-      if (overlayConfig.layout !== "auto") {
-        return;
-      }
-
-      latestAutoTables = tables;
-      const raw = getRawAutoLayout(tables);
-
-      if (!autoDisplay.mode) {
-        autoDisplay = raw;
-        clearPendingAutoTransition();
-        applyDisplayedAutoLayout();
-        return;
-      }
-
-      if (raw.mode === autoDisplay.mode && raw.table === autoDisplay.table) {
-        clearPendingAutoTransition();
-        applyDisplayedAutoLayout();
-        return;
-      }
-
-      if (requiresDelayedAutoTransition(autoDisplay.mode, raw.mode)) {
-        schedulePendingAutoTransition(raw, getAutoTransitionDelay(autoDisplay.mode, raw.mode));
-        applyDisplayedAutoLayout();
-        return;
-      }
-
-      clearPendingAutoTransition();
-      autoDisplay = raw;
-      applyDisplayedAutoLayout();
-    }
-
     function renderState(state) {
       const viewMode = state.viewMode === "open" ? "open" : "competicao";
       const home = state.teams?.home || {};
@@ -894,7 +770,6 @@
 
       renderTable("1", tables["1"], viewMode === "open");
       renderTable("2", tables["2"], viewMode === "open");
-      applyAutoLayout(tables);
     }
 
     async function refresh() {

@@ -68,17 +68,11 @@ O overlay principal está em:
 
 Layouts disponíveis:
 
-- `overlay.html` -> automático/dinâmico
+- `overlay.html` -> duas mesas fixo (por omissão)
 - `overlay_duas_mesas.html` -> duas mesas fixo
 - `overlay_mesa1.html` -> Mesa 1 fixa
 - `overlay_mesa2.html` -> Mesa 2 fixa
 - `overlay.html?layout=scoreboard` -> só marcador
-
-O modo automático decide assim:
-
-- 2 jogos ativos -> vista dupla
-- 1 jogo ativo -> vista de mesa única da mesa ativa
-- 0 jogos ativos -> só marcador
 
 ## OBS Remote Control
 Além dos ficheiros TXT/PNG, a aplicação pode controlar o OBS via WebSocket para manter as câmaras e mudar automaticamente o enquadramento.
