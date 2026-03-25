@@ -5,7 +5,7 @@
 // - Portal, Local Presets, Manual modes
 // - Queue + Drag & Drop
 // - Timers, scoring, history editing
-// - OBS sync (via server)
+// - Broadcast sharing
 
 const $ = id => document.getElementById(id);
 const LOGO_HOME = "logo.png";
@@ -15,7 +15,7 @@ const DEFAULT_TEAM_ACCENTS = {
   away: "#d3a11d"
 };
 const YOUTUBE_LIVE_URL_KEY = "youtubeLiveUrl";
-const OBS_STATUS_REFRESH_MS = 5000;
+const OPEN_COMPETITION_KEY = "openCompetitionName";
 
 // STATE (loaded from server)
 let state = null;
@@ -28,6 +28,7 @@ const timers = {
 
 let viewMode = "teams";     // "teams" | "open"
 let openPlayers = [];       // lista de jogadores para o modo Open
+let openCompetitions = [];
 
 
 // TOAST
@@ -79,50 +80,12 @@ function setupBroadcastControls() {
   }
 }
 
-async function refreshObsStatus() {
-  const pill = $("obsStatusPill");
-  const meta = $("obsStatusMeta");
-  const error = $("obsStatusError");
-  if (!pill || !meta || !error) return;
-
-  try {
-    const response = await fetch("/api/obs/status", { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-
-    pill.classList.remove("is-ok", "is-error");
-    if (data.connected) {
-      pill.classList.add("is-ok");
-      pill.textContent = "OBS ligado";
-    } else {
-      pill.classList.add("is-error");
-      pill.textContent = data.enabled ? "OBS desligado" : "OBS remoto desativado";
-    }
-
-    meta.textContent = `Host ${data.host || "-"}:${data.port || "-"} · Layout ${data.displayLayout || data.desiredLayout || "-"}`;
-
-    if (data.lastError) {
-      error.textContent = data.lastError;
-      error.classList.remove("d-none");
-    } else {
-      error.textContent = "";
-      error.classList.add("d-none");
-    }
-  } catch (err) {
-    pill.classList.remove("is-ok");
-    pill.classList.add("is-error");
-    pill.textContent = "Falha a verificar OBS";
-    meta.textContent = "Sem resposta do portal.";
-    error.textContent = err.message || "Erro desconhecido.";
-    error.classList.remove("d-none");
-  }
-}
-
 // -----------------------------------------------------------------------------
 // INITIAL LOAD
 // -----------------------------------------------------------------------------
 window.addEventListener("load", async () => {
   await loadCompetitions();
+  await loadOpenCompetitions();
   setupModeHandlers();
   setupResetButton();
   setupTeamNameMirroring(); 
@@ -132,8 +95,6 @@ window.addEventListener("load", async () => {
   setupQuadroHandlers();
   setupQuadroDragDrop();
   await loadState();
-  refreshObsStatus();
-  setInterval(refreshObsStatus, OBS_STATUS_REFRESH_MS);
   syncHistoryHeight();
 });
 
@@ -264,6 +225,7 @@ function setupTeamNameMirroring() {
 // -----------------------------------------------------------------------------
 function setupViewModeToggle() {
   const toggle = $("modeToggle");
+  const openCompetitionSearch = $("openCompetitionSearch");
 
   // carregar jogadores Open do localStorage
   const savedOpen = localStorage.getItem("openPlayers");
@@ -273,6 +235,10 @@ function setupViewModeToggle() {
     } catch {
       openPlayers = [];
     }
+  }
+
+  if (openCompetitionSearch) {
+    openCompetitionSearch.value = localStorage.getItem(OPEN_COMPETITION_KEY) || "";
   }
 
   toggle.addEventListener("change", () => {
@@ -285,11 +251,13 @@ function setupViewModeToggle() {
 
   renderOpenPlayers();
   setupOpenModeCollapse();
+  setupOpenPortalImport();
 }
 
 function applyViewMode() {
   const isOpen = viewMode === "open";
 
+  $("teamsCard").classList.toggle("d-none", isOpen);
   $("competitionBlock").classList.toggle("d-none", isOpen);
   const teamsForm = $("teamsForm");
   if (teamsForm) teamsForm.classList.toggle("d-none", isOpen);
@@ -368,6 +336,110 @@ function renderOpenPlayers() {
 
   // manter textarea em sync
   $("openPlayersInput").value = openPlayers.join("\n");
+}
+
+async function loadOpenCompetitions() {
+  const search = $("openCompetitionSearch");
+  const datalist = $("openCompetitionDatalist");
+  if (!search || !datalist) return;
+
+  try {
+    const res = await fetch("/api/portal/open-competitions");
+    const data = await res.json();
+    if (data?.error) throw new Error(data.error);
+    openCompetitions = Array.isArray(data) ? data : [];
+  } catch {
+    openCompetitions = [];
+    datalist.innerHTML = "";
+    return;
+  }
+
+  datalist.innerHTML = "";
+  openCompetitions.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.name;
+    opt.dataset.id = c.id;
+    datalist.appendChild(opt);
+  });
+}
+
+function resolveOpenCompetitionSelection() {
+  const search = $("openCompetitionSearch");
+  const value = search?.value?.trim() || "";
+  if (!value) return null;
+  return openCompetitions.find(c => c.name === value) || null;
+}
+
+function setupOpenPortalImport() {
+  const search = $("openCompetitionSearch");
+  const button = $("loadOpenPortalBtn");
+  if (!search || !button) return;
+  if (!search.dataset.listenerAttached) {
+    search.addEventListener("change", () => {
+      localStorage.setItem(OPEN_COMPETITION_KEY, search.value.trim());
+    });
+    search.addEventListener("input", () => {
+      localStorage.setItem(OPEN_COMPETITION_KEY, search.value.trim());
+    });
+    search.dataset.listenerAttached = "1";
+  }
+  if (!button.dataset.listenerAttached) {
+    button.addEventListener("click", importOpenCompetitionFromPortal);
+    button.dataset.listenerAttached = "1";
+  }
+}
+
+async function importOpenCompetitionFromPortal() {
+  const selected = resolveOpenCompetitionSelection();
+  if (!selected) {
+    showToast("Escolhe uma competição válida da lista do PortalBilhar.", "warning");
+    return;
+  }
+
+  const button = $("loadOpenPortalBtn");
+  const originalLabel = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "A carregar...";
+  }
+
+  try {
+    const res = await fetch(`/api/portal/open-board?comp=${encodeURIComponent(selected.id)}`);
+    const data = await res.json();
+    if (!res.ok || data?.error) throw new Error(data?.error || "Falha ao importar quadro.");
+
+    const importedPlayers = Array.isArray(data.players) ? data.players.filter(Boolean) : [];
+    const importedMatches = Array.isArray(data.matches) ? data.matches : [];
+
+    openPlayers = importedPlayers;
+    localStorage.setItem("openPlayers", JSON.stringify(openPlayers));
+    localStorage.setItem(OPEN_COMPETITION_KEY, data?.competition?.name || selected.name);
+
+    state.queue = importedMatches.map((match, index) => ({
+      id: state.nextGameId + index,
+      gameNumber: Number.isFinite(match.gameNumber) ? match.gameNumber : index + 1,
+      playerHome: match.playerHome,
+      playerAway: match.playerAway
+    }));
+    state.nextGameId += importedMatches.length;
+
+    renderOpenPlayers();
+    populatePlayerDropdowns();
+    renderQueue();
+    await saveQueue();
+
+    const search = $("openCompetitionSearch");
+    if (search) search.value = data?.competition?.name || selected.name;
+
+    showToast(`Quadro Open importado: ${importedMatches.length} jogos e ${importedPlayers.length} jogadores.`, "success");
+  } catch (err) {
+    showToast("Não foi possível importar do PortalBilhar. O preenchimento manual continua disponível.", "warning");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
 }
 
 function setupOpenModeCollapse() {
@@ -2519,7 +2591,7 @@ function setupResetButton() {
     renderTables();
     renderHistory();
 
-    showToast("OBS limpo e estado reposto.", "success");
+    showToast("Estado reposto.", "success");
     setTimeout(() => location.reload(), 300);
   });
 }

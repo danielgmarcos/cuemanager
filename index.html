@@ -670,14 +670,7 @@
         </div>
 
         <div class="row g-4">
-          <div class="col-lg-4">
-            <h6 class="fw-bold mb-2">Estado OBS</h6>
-            <div id="obsStatusPill" class="status-pill">A verificar ligação</div>
-            <div class="small text-muted mt-2" id="obsStatusMeta">Sem dados ainda.</div>
-            <div class="small text-danger mt-1 d-none" id="obsStatusError"></div>
-          </div>
-
-          <div class="col-lg-8">
+          <div class="col-lg-12">
             <h6 class="fw-bold mb-2">Partilha</h6>
             <div class="row g-2 align-items-end">
               <div class="col-md-8">
@@ -839,6 +832,26 @@
         </div>
 
         <div class="open-mode-body">
+          <div class="border rounded p-3 bg-light mb-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+              <h6 class="fw-bold m-0">Importar do PortalBilhar</h6>
+              <button class="btn btn-outline-primary btn-sm" id="loadOpenPortalBtn" type="button">Carregar quadro do PortalBilhar</button>
+            </div>
+
+            <p class="text-muted small mb-2">
+              Pesquisa pela competição e importa os jogos do quadro individual. Se o portal falhar, o preenchimento manual continua disponível abaixo.
+            </p>
+
+            <input
+              id="openCompetitionSearch"
+              class="form-control"
+              list="openCompetitionDatalist"
+              placeholder="Pesquisar competição Open..."
+              autocomplete="off"
+            />
+            <datalist id="openCompetitionDatalist"></datalist>
+          </div>
+
           <p class="text-muted small">
             Introduz os jogadores (um por linha). Eles ficarão disponíveis em ambos os lados da fila de jogos
             para poderem jogar todos contra todos.

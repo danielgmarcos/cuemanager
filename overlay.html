@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ADSCR Bilhar - Overlay OBS</title>
+  <title>ADSCR Bilhar - Overlay</title>
   <style>
     :root {
       --bg: rgba(14, 14, 16, 0.92);
@@ -217,7 +217,6 @@
       padding: 6px 10px 8px;
       position: relative;
       overflow: hidden;
-      clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
     }
 
     .score-panel::before {
@@ -226,7 +225,7 @@
       inset: 2px;
       border: 1px solid rgba(255, 255, 255, 0.14);
       pointer-events: none;
-      clip-path: polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
+      border-radius: 6px;
     }
 
     .score-label {
@@ -298,14 +297,95 @@
 
     .tables-stage {
       display: grid;
-      align-items: end;
+      grid-template-rows: 1fr auto;
+      align-items: stretch;
       justify-items: center;
       width: 100%;
       min-height: 0;
+      gap: 18px;
+    }
+
+    .camera-slots {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-self: stretch;
+    }
+
+    .camera-slot {
+      min-height: 0;
+      border-radius: 18px;
+      border: 2px dashed rgba(255, 255, 255, 0.28);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 40%);
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .camera-slot::before {
+      content: "";
+      position: absolute;
+      inset: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      pointer-events: none;
+    }
+
+    .camera-slot::after {
+      content: "";
+      position: absolute;
+      inset: 50% auto auto 50%;
+      width: 56px;
+      height: 56px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      pointer-events: none;
+    }
+
+    .camera-slot-label {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(8, 10, 14, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .camera-slot-label::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.36);
+    }
+
+    .camera-slot-copy {
+      position: absolute;
+      inset: auto 24px 22px 24px;
+      text-align: center;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.55);
     }
 
     .tables-shell {
-      width: min(1480px, 100%);
+      width: 100%;
+      align-self: stretch;
     }
 
     .tables {
@@ -338,27 +418,33 @@
     }
 
     .table-header {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
       align-items: center;
       gap: 16px;
     }
 
     .table-title {
+      grid-column: 1;
+      justify-self: start;
       font-size: 11px;
       line-height: 1;
       letter-spacing: 0.18em;
       text-transform: uppercase;
+      padding-left: 6px;
       text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
     }
 
     .table-score {
+      grid-column: 3;
+      justify-self: end;
       font-size: 13px;
       font-weight: 800;
       color: #0a0b0d;
       padding: 3px 8px;
       border-radius: 5px;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 235, 235, 0.92));
+      margin-right: 6px;
       min-width: 60px;
       text-align: center;
       visibility: hidden;
@@ -367,6 +453,10 @@
 
     .table-score.visible {
       visibility: visible;
+    }
+
+    .table-score.hidden {
+      display: none;
     }
 
     .players {
@@ -394,6 +484,10 @@
       padding-left: 6px;
       padding-right: 6px;
       text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+    }
+
+    .player-name.home {
+      text-align: left;
     }
 
     .player-name::after {
@@ -433,6 +527,31 @@
       text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
     }
 
+    .player-match-score {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-width: 78px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 16%, rgba(0, 0, 0, 0.22) 17%, transparent 18%),
+        linear-gradient(180deg, #383f46, #101318 55%, #31373d);
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1;
+      color: rgba(255, 255, 255, 0.96);
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .player-match-score .score-separator {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.8em;
+    }
+
     .idle-copy {
       font-size: 16px;
       text-transform: uppercase;
@@ -447,7 +566,6 @@
       display: none;
     }
 
-    .layout-tables .scoreboard,
     .layout-tables .brand-chip {
       display: none;
     }
@@ -456,8 +574,12 @@
       display: none;
     }
 
-    .layout-single .tables-shell {
-      width: min(1080px, 100%);
+    .layout-single .camera-slots {
+      grid-template-columns: 1fr;
+    }
+
+    .layout-single .camera-slot.hidden {
+      display: none;
     }
 
     .layout-single .tables {
@@ -472,12 +594,20 @@
       font-size: clamp(18px, 1.5vw, 24px);
     }
 
-    .layout-tables .overlay {
+    .layout-scoreboard .overlay {
+      grid-template-rows: auto 1fr;
+    }
+
+    .mode-open .scoreboard {
+      display: none;
+    }
+
+    .mode-open .overlay {
       grid-template-rows: 1fr auto;
     }
 
-    .layout-scoreboard .overlay {
-      grid-template-rows: auto 1fr;
+    .mode-open.layout-scoreboard .overlay {
+      grid-template-rows: 1fr;
     }
 
     @media (max-width: 1200px) {
@@ -490,6 +620,10 @@
       }
 
       .tables {
+        grid-template-columns: 1fr;
+      }
+
+      .camera-slots {
         grid-template-columns: 1fr;
       }
     }
@@ -535,6 +669,18 @@
     </section>
 
     <section class="tables-stage" aria-label="Mesas">
+      <section class="camera-slots" aria-label="Guias de câmara">
+        <article class="camera-slot" id="cameraSlot1">
+          <div class="camera-slot-label">Camera Slot Mesa 1</div>
+          <div class="camera-slot-copy">Alinhar manualmente a câmara da mesa 1 nesta caixa</div>
+        </article>
+
+        <article class="camera-slot" id="cameraSlot2">
+          <div class="camera-slot-label">Camera Slot Mesa 2</div>
+          <div class="camera-slot-copy">Alinhar manualmente a câmara da mesa 2 nesta caixa</div>
+        </article>
+      </section>
+
       <div class="tables-shell">
         <section class="tables">
           <article class="table-card" id="table1Card">
@@ -612,11 +758,8 @@
 
       document.getElementById("table1Card").classList.toggle("hidden", layout === "single" && table !== "1");
       document.getElementById("table2Card").classList.toggle("hidden", layout === "single" && table !== "2");
-    }
-
-    function buildLogoPath(viewMode, side, version) {
-      const folder = viewMode === "open" ? "modo_open" : "competicao";
-      return `obs_files/${folder}/logo_equipa_${side}.png?v=${version}`;
+      document.getElementById("cameraSlot1").classList.toggle("hidden", layout === "single" && table !== "1");
+      document.getElementById("cameraSlot2").classList.toggle("hidden", layout === "single" && table !== "2");
     }
 
     function updateLogo(img, path) {
@@ -629,71 +772,6 @@
 
     function setTeamAccent(side, color) {
       document.documentElement.style.setProperty(`--team-accent-${side}`, color);
-    }
-
-    function rgbToCss(r, g, b) {
-      return `rgb(${r}, ${g}, ${b})`;
-    }
-
-    function extractAccentFromLogo(side, path, fallbackColor) {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const size = 24;
-        canvas.width = size;
-        canvas.height = size;
-        const context = canvas.getContext("2d", { willReadFrequently: true });
-        if (!context) {
-          setTeamAccent(side, fallbackColor);
-          return;
-        }
-
-        context.drawImage(img, 0, 0, size, size);
-        const { data } = context.getImageData(0, 0, size, size);
-        let totalR = 0;
-        let totalG = 0;
-        let totalB = 0;
-        let count = 0;
-
-        for (let i = 0; i < data.length; i += 16) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const a = data[i + 3];
-          const max = Math.max(r, g, b);
-          const min = Math.min(r, g, b);
-          const saturation = max - min;
-          const luminance = (r + g + b) / 3;
-
-          if (a < 120) continue;
-          if (luminance > 240 || luminance < 30) continue;
-          if (saturation < 18) continue;
-
-          totalR += r;
-          totalG += g;
-          totalB += b;
-          count += 1;
-        }
-
-        if (!count) {
-          setTeamAccent(side, fallbackColor);
-          return;
-        }
-
-        setTeamAccent(
-          side,
-          rgbToCss(
-            Math.round(totalR / count),
-            Math.round(totalG / count),
-            Math.round(totalB / count)
-          )
-        );
-      };
-
-      img.onerror = () => {
-        setTeamAccent(side, fallbackColor);
-      };
-      img.src = path;
     }
 
     function renderTable(tableId, table, isOpenMode) {
@@ -711,18 +789,28 @@
         return;
       }
 
-      players.innerHTML = `
-        <div class="player-name home">${escapeHtml(trimLabel(text(table.playerHome, "Jogador 1"), 28))}</div>
-        <div class="vs-badge">VS</div>
-        <div class="player-name away">${escapeHtml(trimLabel(text(table.playerAway, "Jogador 2"), 28))}</div>
-      `;
-
       if (isOpenMode) {
-        score.textContent = `${Number(table.scoreHome || 0)} - ${Number(table.scoreAway || 0)}`;
-        score.classList.add("visible");
-      } else {
+        players.innerHTML = `
+          <div class="player-name home">${escapeHtml(trimLabel(text(table.playerHome, "Jogador 1"), 28))}</div>
+          <div class="player-match-score">
+            <span>${Number(table.scoreHome || 0)}</span>
+            <span class="score-separator">-</span>
+            <span>${Number(table.scoreAway || 0)}</span>
+          </div>
+          <div class="player-name away">${escapeHtml(trimLabel(text(table.playerAway, "Jogador 2"), 28))}</div>
+        `;
         score.textContent = "";
         score.classList.remove("visible");
+        score.classList.add("hidden");
+      } else {
+        players.innerHTML = `
+          <div class="player-name home">${escapeHtml(trimLabel(text(table.playerHome, "Jogador 1"), 28))}</div>
+          <div class="vs-badge">VS</div>
+          <div class="player-name away">${escapeHtml(trimLabel(text(table.playerAway, "Jogador 2"), 28))}</div>
+        `;
+        score.textContent = "";
+        score.classList.remove("visible");
+        score.classList.remove("hidden");
       }
     }
 
@@ -745,6 +833,8 @@
         return;
       }
       lastSignature = signature;
+      document.body.classList.toggle("mode-open", viewMode === "open");
+      document.body.classList.toggle("mode-competition", viewMode !== "open");
 
       document.getElementById("homeName").textContent = trimLabel(text(home.name, "Locais"), 34);
       document.getElementById("awayName").textContent = trimLabel(text(away.name, "Visitantes"), 34);
@@ -752,21 +842,12 @@
       document.getElementById("awayScore").textContent = Number(away.score || 0);
       document.getElementById("scoreLabel").textContent = viewMode === "open" ? "Classificacao" : "Resultado";
 
-      const version = encodeURIComponent(`${Date.now()}-${home.name || ""}-${away.name || ""}`);
-      const homeLogoPath = buildLogoPath(viewMode, "casa", version);
-      const awayLogoPath = buildLogoPath(viewMode, "visitante", version);
+      const homeLogoPath = home.logoUrl || DEFAULT_LOGO;
+      const awayLogoPath = away.logoUrl || DEFAULT_LOGO;
       updateLogo(document.getElementById("homeLogo"), homeLogoPath);
       updateLogo(document.getElementById("awayLogo"), awayLogoPath);
-      if (home.accentColor) {
-        setTeamAccent("home", home.accentColor);
-      } else {
-        extractAccentFromLogo("home", homeLogoPath, "#f2f2f2");
-      }
-      if (away.accentColor) {
-        setTeamAccent("away", away.accentColor);
-      } else {
-        extractAccentFromLogo("away", awayLogoPath, "#d3a11d");
-      }
+      setTeamAccent("home", home.accentColor || "#f2f2f2");
+      setTeamAccent("away", away.accentColor || "#d3a11d");
 
       renderTable("1", tables["1"], viewMode === "open");
       renderTable("2", tables["2"], viewMode === "open");

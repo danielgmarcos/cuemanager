@@ -1,13 +1,11 @@
 // ADSCR Control Panel v1.1 – backend with:
 // - file persistence
-// - OBS txt integration
 // - PortalBilhar competitions + teams + players
 // - history-based team scoring
 
 import express from "express";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 import { fileURLToPath } from "url";
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
@@ -31,34 +29,8 @@ app.use(express.static(__dirname));
 // --- Directories & state file ----------------------------------------------
 
 const DATA_DIR = path.join(__dirname, "data");
-const OBS_DIR = path.join(__dirname, "obs_files");
-const OBS_COMP_DIR = path.join(OBS_DIR, "competicao");
-const OBS_OPEN_DIR = path.join(OBS_DIR, "modo_open");
-const DEFAULT_LOGO = path.join(__dirname, "logo.png");
-const DEFAULT_BALL8 = path.join(__dirname, "ball8.svg");
-const OBS_REMOTE_CONFIG = {
-  enabled: parseBoolean(process.env.OBS_REMOTE_ENABLED, true),
-  host: process.env.OBS_REMOTE_HOST || "127.0.0.1",
-  port: Number.parseInt(process.env.OBS_REMOTE_PORT || "4455", 10),
-  password: process.env.OBS_REMOTE_PASSWORD || "",
-  sceneName: process.env.OBS_SCENE_NAME || "Camp. Mesas Auto",
-  cam1Source: process.env.OBS_CAM1_SOURCE || "Cam Mesa 1",
-  cam2Source: process.env.OBS_CAM2_SOURCE || "Cam Mesa 2",
-  overlaySource: process.env.OBS_OVERLAY_SOURCE || "Overlay Browser",
-  canvasWidth: Number.parseInt(process.env.OBS_CANVAS_WIDTH || "1920", 10),
-  canvasHeight: Number.parseInt(process.env.OBS_CANVAS_HEIGHT || "1080", 10),
-  sponsorSafeHeight: Number.parseInt(process.env.OBS_SPONSOR_SAFE_HEIGHT || "136", 10),
-  topSafeHeight: Number.parseInt(process.env.OBS_TOP_SAFE_HEIGHT || "82", 10),
-  outerMargin: Number.parseInt(process.env.OBS_OUTER_MARGIN || "20", 10),
-  layoutToSingleMs: Number.parseInt(process.env.OBS_LAYOUT_TO_SINGLE_MS || "10000", 10),
-  layoutToSplitMs: Number.parseInt(process.env.OBS_LAYOUT_TO_SPLIT_MS || "5000", 10),
-  reconnectMs: Number.parseInt(process.env.OBS_REMOTE_RECONNECT_MS || "5000", 10)
-};
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
-fs.mkdirSync(OBS_DIR, { recursive: true });
-fs.mkdirSync(OBS_COMP_DIR, { recursive: true });
-fs.mkdirSync(OBS_OPEN_DIR, { recursive: true });
 
 const STATE_FILE = path.join(DATA_DIR, "state.json");
 
@@ -85,455 +57,6 @@ function normalizeStateShape(state) {
   current.teams.away = normalizeTeam(current.teams.away, "away");
   return current;
 }
-
-function parseBoolean(value, defaultValue = false) {
-  if (value == null) return defaultValue;
-  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
-}
-
-function computeObsLayoutRects(config) {
-  const margin = config.outerMargin;
-  const top = config.topSafeHeight;
-  const bottom = config.sponsorSafeHeight;
-  const width = config.canvasWidth;
-  const height = config.canvasHeight;
-  const gutter = 20;
-  const videoTop = top;
-  const videoHeight = Math.max(200, height - top - bottom);
-  const splitWidth = Math.floor((width - (margin * 2) - gutter) / 2);
-  const rightX = margin + splitWidth + gutter;
-  const fullWidth = width - (margin * 2);
-
-  return {
-    split: {
-      [config.cam1Source]: {
-        positionX: margin,
-        positionY: videoTop,
-        boundsWidth: splitWidth,
-        boundsHeight: videoHeight
-      },
-      [config.cam2Source]: {
-        positionX: rightX,
-        positionY: videoTop,
-        boundsWidth: splitWidth,
-        boundsHeight: videoHeight
-      }
-    },
-    table1: {
-      [config.cam1Source]: {
-        positionX: margin,
-        positionY: videoTop,
-        boundsWidth: fullWidth,
-        boundsHeight: videoHeight
-      }
-    },
-    table2: {
-      [config.cam2Source]: {
-        positionX: margin,
-        positionY: videoTop,
-        boundsWidth: fullWidth,
-        boundsHeight: videoHeight
-      }
-    }
-  };
-}
-
-function computeRemoteLayout(state) {
-  const activeTables = ["1", "2"].filter(tableId => Boolean(state.tables?.[tableId]?.gameId));
-  if (activeTables.length >= 2) return "split";
-  if (activeTables[0] === "1") return "table1";
-  if (activeTables[0] === "2") return "table2";
-  return "scoreboard";
-}
-
-function isSingleRemoteLayout(layout) {
-  return layout === "table1" || layout === "table2";
-}
-
-function requiresDelayedRemoteTransition(fromLayout, toLayout) {
-  return (
-    (fromLayout === "split" && isSingleRemoteLayout(toLayout)) ||
-    (isSingleRemoteLayout(fromLayout) && toLayout === "split")
-  );
-}
-
-function getRemoteTransitionDelay(config, fromLayout, toLayout) {
-  if (fromLayout === "split" && isSingleRemoteLayout(toLayout)) {
-    return config.layoutToSingleMs;
-  }
-  if (isSingleRemoteLayout(fromLayout) && toLayout === "split") {
-    return config.layoutToSplitMs;
-  }
-  return 0;
-}
-
-class ObsRemoteController {
-  constructor(config) {
-    this.config = config;
-    this.ws = null;
-    this.connectPromise = null;
-    this.pending = new Map();
-    this.requestCounter = 1;
-    this.sceneItemIds = new Map();
-    this.serial = Promise.resolve();
-    this.lastAppliedLayout = null;
-    this.displayLayout = null;
-    this.pendingLayout = null;
-    this.pendingTimer = null;
-    this.lastError = null;
-    this.lastErrorAt = 0;
-    this.desiredState = null;
-    this.reconnectTimer = null;
-    this.rects = computeObsLayoutRects(config);
-  }
-
-  status() {
-    return {
-      enabled: this.config.enabled,
-      connected: this.isConnected(),
-      host: this.config.host,
-      port: this.config.port,
-      passwordConfigured: Boolean(this.config.password),
-      sceneName: this.config.sceneName,
-      cam1Source: this.config.cam1Source,
-      cam2Source: this.config.cam2Source,
-      overlaySource: this.config.overlaySource,
-      displayLayout: this.displayLayout,
-      pendingLayout: this.pendingLayout,
-      lastAppliedLayout: this.lastAppliedLayout,
-      lastError: this.lastError
-    };
-  }
-
-  isConnected() {
-    return this.ws && this.ws.readyState === WebSocket.OPEN;
-  }
-
-  syncState(state) {
-    if (!this.config.enabled) return;
-    this.desiredState = JSON.parse(JSON.stringify(state));
-    const layout = this.resolveDisplayLayout(state);
-    this.serial = this.serial
-      .then(() => this.applyLayout(layout))
-      .catch(err => {
-        this.recordError(err);
-      });
-  }
-
-  clearPendingTransition() {
-    if (this.pendingTimer) {
-      clearTimeout(this.pendingTimer);
-      this.pendingTimer = null;
-    }
-    this.pendingLayout = null;
-  }
-
-  schedulePendingTransition(layout, delayMs) {
-    if (this.pendingLayout === layout && this.pendingTimer) return;
-    this.clearPendingTransition();
-    this.pendingLayout = layout;
-    this.pendingTimer = setTimeout(() => {
-      this.pendingTimer = null;
-      this.pendingLayout = null;
-      const latestState = this.desiredState;
-      const finalLayout = latestState ? computeRemoteLayout(latestState) : layout;
-      this.displayLayout = finalLayout;
-
-      if (latestState) {
-        this.syncState(latestState);
-        return;
-      }
-
-      this.serial = this.serial
-        .then(() => this.applyLayout(finalLayout))
-        .catch(err => {
-          this.recordError(err);
-        });
-    }, delayMs);
-  }
-
-  resolveDisplayLayout(state) {
-    const rawLayout = computeRemoteLayout(state);
-
-    if (!this.displayLayout) {
-      this.displayLayout = rawLayout;
-      this.clearPendingTransition();
-      return rawLayout;
-    }
-
-    if (rawLayout === this.displayLayout) {
-      this.clearPendingTransition();
-      return this.displayLayout;
-    }
-
-    if (requiresDelayedRemoteTransition(this.displayLayout, rawLayout)) {
-      this.schedulePendingTransition(
-        rawLayout,
-        getRemoteTransitionDelay(this.config, this.displayLayout, rawLayout)
-      );
-      return this.displayLayout;
-    }
-
-    this.clearPendingTransition();
-    this.displayLayout = rawLayout;
-    return rawLayout;
-  }
-
-  recordError(err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const now = Date.now();
-    this.lastError = message;
-    if (now - this.lastErrorAt >= 15000) {
-      console.error("OBS remote error:", message);
-      this.lastErrorAt = now;
-    }
-  }
-
-  async ensureConnected() {
-    if (this.isConnected()) return;
-    if (this.connectPromise) {
-      await this.connectPromise;
-      return;
-    }
-
-    this.connectPromise = new Promise((resolve, reject) => {
-      const ws = new WebSocket(`ws://${this.config.host}:${this.config.port}`);
-      let settled = false;
-
-      const fail = (error) => {
-        if (settled) return;
-        settled = true;
-        this.cleanupSocket();
-        reject(error instanceof Error ? error : new Error(String(error)));
-      };
-
-      ws.addEventListener("error", () => {
-        fail(new Error(`Não foi possível ligar ao OBS em ws://${this.config.host}:${this.config.port}`));
-      });
-
-      ws.addEventListener("close", () => {
-        if (!settled) {
-          fail(new Error("Ligação ao OBS fechada durante a autenticação."));
-        } else {
-          this.cleanupSocket();
-        }
-      });
-
-      ws.addEventListener("message", async (event) => {
-        try {
-          const raw =
-            typeof event.data === "string"
-              ? event.data
-              : Buffer.from(event.data).toString("utf8");
-          const packet = JSON.parse(raw);
-
-          if (packet.op === 0) {
-            const authentication = packet.d?.authentication;
-            const identify = {
-              rpcVersion: packet.d?.rpcVersion || 1
-            };
-            if (authentication) {
-              identify.authentication = this.buildAuthentication(authentication.challenge, authentication.salt);
-            }
-            ws.send(JSON.stringify({ op: 1, d: identify }));
-            return;
-          }
-
-          if (packet.op === 2) {
-            settled = true;
-            this.ws = ws;
-            this.lastError = null;
-            this.sceneItemIds.clear();
-            resolve();
-            return;
-          }
-
-          if (packet.op === 7) {
-            const requestId = packet.d?.requestId;
-            if (!requestId) return;
-            const pending = this.pending.get(requestId);
-            if (!pending) return;
-            this.pending.delete(requestId);
-            if (packet.d?.requestStatus?.result) {
-              pending.resolve(packet.d?.responseData || {});
-            } else {
-              pending.reject(new Error(packet.d?.requestStatus?.comment || `OBS request ${packet.d?.requestType || requestId} falhou.`));
-            }
-          }
-        } catch (error) {
-          fail(error);
-        }
-      });
-    }).finally(() => {
-      this.connectPromise = null;
-    });
-
-    await this.connectPromise;
-  }
-
-  cleanupSocket() {
-    if (this.ws) {
-      try {
-        this.ws.close();
-      } catch {
-        // no-op
-      }
-    }
-    this.ws = null;
-    this.sceneItemIds.clear();
-    this.lastAppliedLayout = null;
-    this.displayLayout = null;
-    for (const pending of this.pending.values()) {
-      pending.reject(new Error("Ligação ao OBS perdida."));
-    }
-    this.pending.clear();
-  }
-
-  startBackgroundSync(loadStateFn) {
-    if (!this.config.enabled || this.reconnectTimer) return;
-
-    this.reconnectTimer = setInterval(() => {
-      try {
-        const latestState =
-          this.desiredState ||
-          (typeof loadStateFn === "function" ? loadStateFn() : null);
-
-        if (!latestState) return;
-        this.desiredState = latestState;
-
-        const desiredLayout = this.resolveDisplayLayout(latestState);
-
-        if (this.isConnected() && this.lastAppliedLayout === desiredLayout) {
-          return;
-        }
-
-        this.serial = this.serial
-          .then(() => this.applyLayout(desiredLayout))
-          .catch(err => {
-            this.recordError(err);
-          });
-      } catch (err) {
-        this.recordError(err);
-      }
-    }, this.config.reconnectMs);
-  }
-
-  buildAuthentication(challenge, salt) {
-    const secret = crypto
-      .createHash("sha256")
-      .update(`${this.config.password}${salt}`)
-      .digest("base64");
-
-    return crypto
-      .createHash("sha256")
-      .update(`${secret}${challenge}`)
-      .digest("base64");
-  }
-
-  async call(requestType, requestData = undefined) {
-    await this.ensureConnected();
-    const requestId = String(this.requestCounter++);
-    const payload = {
-      op: 6,
-      d: {
-        requestType,
-        requestId
-      }
-    };
-    if (requestData && Object.keys(requestData).length > 0) {
-      payload.d.requestData = requestData;
-    }
-
-    return new Promise((resolve, reject) => {
-      this.pending.set(requestId, { resolve, reject });
-      try {
-        this.ws.send(JSON.stringify(payload));
-      } catch (error) {
-        this.pending.delete(requestId);
-        reject(error);
-      }
-    });
-  }
-
-  async getSceneItemId(sourceName) {
-    const key = `${this.config.sceneName}::${sourceName}`;
-    if (this.sceneItemIds.has(key)) {
-      return this.sceneItemIds.get(key);
-    }
-    const response = await this.call("GetSceneItemId", {
-      sceneName: this.config.sceneName,
-      sourceName
-    });
-    this.sceneItemIds.set(key, response.sceneItemId);
-    return response.sceneItemId;
-  }
-
-  async setSceneItemEnabled(sourceName, sceneItemEnabled) {
-    const sceneItemId = await this.getSceneItemId(sourceName);
-    await this.call("SetSceneItemEnabled", {
-      sceneName: this.config.sceneName,
-      sceneItemId,
-      sceneItemEnabled
-    });
-  }
-
-  async setSceneItemTransform(sourceName, rect) {
-    const sceneItemId = await this.getSceneItemId(sourceName);
-    await this.call("SetSceneItemTransform", {
-      sceneName: this.config.sceneName,
-      sceneItemId,
-      sceneItemTransform: {
-        positionX: rect.positionX,
-        positionY: rect.positionY,
-        rotation: 0,
-        alignment: 5,
-        boundsType: "OBS_BOUNDS_STRETCH",
-        boundsAlignment: 5,
-        boundsWidth: rect.boundsWidth,
-        boundsHeight: rect.boundsHeight,
-        cropToBounds: false
-      }
-    });
-  }
-
-  async applyLayout(layout) {
-    if (layout === this.lastAppliedLayout && this.isConnected()) {
-      return;
-    }
-
-    await this.ensureConnected();
-
-    const visibleSources = new Set();
-    if (layout === "split") {
-      visibleSources.add(this.config.cam1Source);
-      visibleSources.add(this.config.cam2Source);
-    } else if (layout === "table1") {
-      visibleSources.add(this.config.cam1Source);
-    } else if (layout === "table2") {
-      visibleSources.add(this.config.cam2Source);
-    }
-
-    const cameraSources = [this.config.cam1Source, this.config.cam2Source];
-    for (const sourceName of cameraSources) {
-      await this.setSceneItemEnabled(sourceName, visibleSources.has(sourceName));
-    }
-
-    const rectSet = this.rects[layout];
-    if (rectSet) {
-      for (const [sourceName, rect] of Object.entries(rectSet)) {
-        await this.setSceneItemTransform(sourceName, rect);
-      }
-    }
-
-    if (this.config.overlaySource) {
-      await this.setSceneItemEnabled(this.config.overlaySource, true);
-    }
-
-    this.lastAppliedLayout = layout;
-  }
-}
-
-const obsRemote = new ObsRemoteController(OBS_REMOTE_CONFIG);
 
 // --- Initial state & helpers -----------------------------------------------
 
@@ -574,10 +97,6 @@ function initState() {
   };
 
   fs.writeFileSync(STATE_FILE, JSON.stringify(initial, null, 2));
-
-  // Initialize OBS files
-  clearObsFiles();
-  obsRemote.syncState(initial);
   return initial;
 }
 
@@ -590,95 +109,6 @@ function loadState() {
 
 function saveState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
-
-  const homeName = state.teams.home.name?.trim() || "Locais";
-  const awayName = state.teams.away.name?.trim() || "Visitantes";
-  const homeScore = Number.isFinite(state.teams.home.score) ? state.teams.home.score : 0;
-  const awayScore = Number.isFinite(state.teams.away.score) ? state.teams.away.score : 0;
-
-  const baseDir = state.viewMode === "open" ? OBS_OPEN_DIR : OBS_COMP_DIR;
-
-  fs.writeFileSync(path.join(baseDir, "nome_equipa_casa.txt"), homeName);
-  fs.writeFileSync(path.join(baseDir, "nome_equipa_visitante.txt"), awayName);
-  fs.writeFileSync(
-    path.join(baseDir, "classificacao.txt"),
-    `${homeScore} - ${awayScore}`
-  );
-
-  updateObsTable("1", state.tables["1"], state.viewMode, baseDir);
-  updateObsTable("2", state.tables["2"], state.viewMode, baseDir);
-  obsRemote.syncState(state);
-}
-
-function clearObsFiles() {
-  const dirs = [OBS_COMP_DIR, OBS_OPEN_DIR];
-  dirs.forEach(dir => {
-    fs.writeFileSync(path.join(dir, "nome_equipa_casa.txt"), "");
-    fs.writeFileSync(path.join(dir, "nome_equipa_visitante.txt"), "");
-    fs.writeFileSync(path.join(dir, "classificacao.txt"), "");
-
-    fs.writeFileSync(path.join(dir, "mesa1_jogador_casa.txt"), "");
-    fs.writeFileSync(path.join(dir, "mesa1_jogador_visitante.txt"), "");
-    fs.writeFileSync(path.join(dir, "mesa2_jogador_casa.txt"), "");
-    fs.writeFileSync(path.join(dir, "mesa2_jogador_visitante.txt"), "");
-
-    // Só usados no modo Open
-    fs.writeFileSync(path.join(dir, "mesa1_classificacao.txt"), "");
-    fs.writeFileSync(path.join(dir, "mesa2_classificacao.txt"), "");
-
-    // Logos
-    const homeLogo = path.join(dir, "logo_equipa_casa.png");
-    const awayLogo = path.join(dir, "logo_equipa_visitante.png");
-    if (fs.existsSync(homeLogo)) fs.unlinkSync(homeLogo);
-    if (fs.existsSync(awayLogo)) fs.unlinkSync(awayLogo);
-  });
-}
-
-async function downloadLogoToFile(url, filePath) {
-  const useDefault = () => {
-    if (fs.existsSync(DEFAULT_LOGO)) {
-      fs.copyFileSync(DEFAULT_LOGO, filePath);
-    } else if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  };
-
-  const useBall8 = () => {
-    if (fs.existsSync(DEFAULT_BALL8)) {
-      fs.copyFileSync(DEFAULT_BALL8, filePath);
-    } else {
-      useDefault();
-    }
-  };
-
-  if (!url) {
-    useDefault();
-    return;
-  }
-
-  if (url === "__ball8__") {
-    useBall8();
-    return;
-  }
-  if (url === "__logo__") {
-    useDefault();
-    return;
-  }
-
-  try {
-    const response = await client.get(url, {
-      responseType: "arraybuffer",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0",
-        Accept: "image/*,*/*"
-      }
-    });
-
-    fs.writeFileSync(filePath, Buffer.from(response.data));
-  } catch {
-    useDefault();
-  }
 }
 
 // recompute team scores purely from history
@@ -782,34 +212,6 @@ function removeAdjustments(state, side, count) {
   return remaining;
 }
 
-// write table info to OBS files
-function updateObsTable(tableId, table, viewMode = "teams", baseDir = OBS_COMP_DIR) {
-  const p1File = path.join(baseDir, `mesa${tableId}_jogador_casa.txt`);
-  const p2File = path.join(baseDir, `mesa${tableId}_jogador_visitante.txt`);
-  const scoreFile = path.join(baseDir, `mesa${tableId}_classificacao.txt`);
-
-  if (table && table.gameId) {
-    // jogador 1 e jogador 2 em ficheiros separados
-    fs.writeFileSync(p1File, table.playerHome || "");
-    fs.writeFileSync(p2File, table.playerAway || "");
-
-    if (viewMode === "open") {
-      fs.writeFileSync(
-        scoreFile,
-        `${table.scoreHome ?? 0} - ${table.scoreAway ?? 0}`
-      );
-    } else {
-      fs.writeFileSync(scoreFile, "");
-    }
-  } else {
-    // sem jogo na mesa → limpar
-    fs.writeFileSync(p1File, "");
-    fs.writeFileSync(p2File, "");
-    fs.writeFileSync(scoreFile, "");
-  }
-}
-
-
 // --- PortalBilhar scraping --------------------------------------------------
 
 // Base for competition listing (all variants); we’ll just extract any link with Comp=.
@@ -818,9 +220,69 @@ const COMP_BASE = `https://portalbilhar.pt/Publico/BT/Publico_P_Eqp.aspx?org=${O
 
 // Pool Português encoded
 const VARIANTE_POOL = "Pool_Portugu%C3%AAs";
+const OPEN_ORG_ID = 13;
+const OPEN_BOARD_URL = `https://portalbilhar.pt/Publico/Bt/Publico_P_Ind.aspx?Variante=${VARIANTE_POOL}&org=${OPEN_ORG_ID}`;
 
 // Players come from Publico_Eqp.aspx?Eqp=...
 const TEAM_PAGE_BASE = "https://portalbilhar.pt/Publico/BT/Publico_Eqp.aspx?Eqp=";
+
+function getPortalHeaders() {
+  return {
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0",
+    Accept: "text/html,application/xhtml+xml",
+    "Accept-Language": "pt-PT,pt;q=0.9"
+  };
+}
+
+function normalizePortalText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function isPortalPlaceholder(value) {
+  return !value || /seleccione|escolher/i.test(value);
+}
+
+function parseOpenBoardRows($) {
+  const matches = [];
+
+  $("#tbl_Resultados tr").each((_, row) => {
+    const cells = $(row).find("td");
+    if (cells.length < 5) return;
+
+    const scheduledAt = normalizePortalText($(cells[0]).text());
+    const playerHome = normalizePortalText($(cells[1]).text());
+    const resultText = normalizePortalText($(cells[2]).text());
+    const playerAway = normalizePortalText($(cells[3]).text());
+    const location = normalizePortalText($(cells[4]).text());
+
+    if (!playerHome || !playerAway) return;
+    if (/jogador/i.test(playerHome) || /jogador/i.test(playerAway)) return;
+
+    const gameNumberMatch = resultText.match(/Jogo\s*n[ºo]\s*(\d+)/i);
+    const scoreMatch = resultText.match(/(\d+)\s*-\s*(\d+)/);
+
+    matches.push({
+      gameNumber: gameNumberMatch ? Number.parseInt(gameNumberMatch[1], 10) : null,
+      playerHome,
+      playerAway,
+      resultText,
+      location,
+      scheduledAt,
+      portalScoreHome: scoreMatch ? Number.parseInt(scoreMatch[1], 10) : null,
+      portalScoreAway: scoreMatch ? Number.parseInt(scoreMatch[2], 10) : null
+    });
+  });
+
+  matches.sort((a, b) => {
+    const aNumber = Number.isFinite(a.gameNumber) ? a.gameNumber : Number.MAX_SAFE_INTEGER;
+    const bNumber = Number.isFinite(b.gameNumber) ? b.gameNumber : Number.MAX_SAFE_INTEGER;
+    if (aNumber !== bNumber) return aNumber - bNumber;
+    return a.playerHome.localeCompare(b.playerHome, "pt");
+  });
+
+  return matches;
+}
 
 // List competitions (we keep it simple: any link with Comp=)
 // Correct competition scraping from dropdown <select id="ddlCompeticao">
@@ -831,12 +293,7 @@ app.get("/api/portal/competitions", async (req, res) => {
 
     // Make request with cookie jar (simulates browser)
     const response = await client.get(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0",
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "pt-PT,pt;q=0.9",
-      },
+      headers: getPortalHeaders(),
     });
 
     const html = response.data;
@@ -860,6 +317,58 @@ app.get("/api/portal/competitions", async (req, res) => {
   }
 });
 
+app.get("/api/portal/open-competitions", async (req, res) => {
+  try {
+    const response = await client.get(OPEN_BOARD_URL, {
+      headers: getPortalHeaders()
+    });
+    const $ = cheerio.load(response.data);
+    const competitions = [];
+
+    $("select[id$='dd_competicao'] option").each((_, el) => {
+      const id = normalizePortalText($(el).attr("value"));
+      const name = normalizePortalText($(el).text());
+      if (!id || isPortalPlaceholder(name)) return;
+      competitions.push({ id, name });
+    });
+
+    res.json(competitions);
+  } catch (err) {
+    console.error("Open competitions scrape error:", err);
+    res.status(500).json({ error: "Falha ao obter competições Open." });
+  }
+});
+
+app.get("/api/portal/open-board", async (req, res) => {
+  const comp = normalizePortalText(req.query.comp);
+  if (!comp) {
+    return res.status(400).json({ error: "Falta parâmetro ?comp=" });
+  }
+
+  try {
+    const url = `${OPEN_BOARD_URL}&Comp=${encodeURIComponent(comp)}`;
+    const response = await client.get(url, {
+      headers: getPortalHeaders()
+    });
+    const $ = cheerio.load(response.data);
+    const selected = $("select[id$='dd_competicao'] option:selected").first();
+    const competitionName = normalizePortalText(selected.text()) || comp;
+    const matches = parseOpenBoardRows($);
+    const players = [...new Set(matches.flatMap(match => [match.playerHome, match.playerAway]))];
+
+    res.json({
+      competition: {
+        id: comp,
+        name: competitionName
+      },
+      players,
+      matches
+    });
+  } catch (err) {
+    console.error("Open board scrape error:", err);
+    res.status(500).json({ error: "Falha ao obter quadro Open." });
+  }
+});
 
 
 
@@ -984,15 +493,6 @@ app.get("/api/state", (req, res) => {
   res.json(loadState());
 });
 
-app.get("/api/obs/status", (req, res) => {
-  const state = loadState();
-  res.json({
-    ...obsRemote.status(),
-    desiredLayout: computeRemoteLayout(state),
-    activeTables: ["1", "2"].filter(tableId => Boolean(state.tables?.[tableId]?.gameId))
-  });
-});
-
 // Set competition
 app.post("/api/competition", (req, res) => {
   const state = loadState();
@@ -1054,60 +554,15 @@ app.post("/api/view-mode", (req, res) => {
   const mode = req.body.viewMode === "open" ? "open" : "teams";
   state.viewMode = mode;
   saveState(state);
-
-  try {
-    const baseDir = state.viewMode === "open" ? OBS_OPEN_DIR : OBS_COMP_DIR;
-    if (state.viewMode === "open") {
-      downloadLogoToFile(null, path.join(baseDir, "logo_equipa_casa.png"));
-      downloadLogoToFile(null, path.join(baseDir, "logo_equipa_visitante.png"));
-    } else {
-      if (state.teams.home.logoUrl) {
-        downloadLogoToFile(state.teams.home.logoUrl, path.join(baseDir, "logo_equipa_casa.png"));
-      }
-      if (state.teams.away.logoUrl) {
-        downloadLogoToFile(state.teams.away.logoUrl, path.join(baseDir, "logo_equipa_visitante.png"));
-      }
-    }
-  } catch (err) {
-    console.error("Logo download error:", err);
-  }
-
   res.json({ viewMode: state.viewMode });
 });
 
 // Set teams (home & away) – we persist whatever object the frontend sends
 app.post("/api/set-teams", async (req, res) => {
   const state = loadState();
-  const prevHomeLogo = state.teams.home.logoUrl;
-  const prevAwayLogo = state.teams.away.logoUrl;
-
   state.teams.home = normalizeTeam(req.body.home || state.teams.home, "home");
   state.teams.away = normalizeTeam(req.body.away || state.teams.away, "away");
   saveState(state);
-
-  try {
-    const baseDir = state.viewMode === "open" ? OBS_OPEN_DIR : OBS_COMP_DIR;
-    if (state.viewMode === "open") {
-      await downloadLogoToFile(null, path.join(baseDir, "logo_equipa_casa.png"));
-      await downloadLogoToFile(null, path.join(baseDir, "logo_equipa_visitante.png"));
-    } else {
-      if (state.teams.home.logoUrl !== prevHomeLogo) {
-        await downloadLogoToFile(
-          state.teams.home.logoUrl,
-          path.join(baseDir, "logo_equipa_casa.png")
-        );
-      }
-      if (state.teams.away.logoUrl !== prevAwayLogo) {
-        await downloadLogoToFile(
-          state.teams.away.logoUrl,
-          path.join(baseDir, "logo_equipa_visitante.png")
-        );
-      }
-    }
-  } catch (err) {
-    console.error("Logo download error:", err);
-  }
-
   res.json(state.teams);
 });
 
@@ -1174,8 +629,6 @@ app.post("/api/table/set", (req, res) => {
     quadroIndex: game.quadroIndex ?? null
   };
   saveState(state);
-  const baseDir = state.viewMode === "open" ? OBS_OPEN_DIR : OBS_COMP_DIR;
-  updateObsTable(tableId, state.tables[tableId], state.viewMode, baseDir);
   res.json(state.tables[tableId]);
 });
 
@@ -1205,8 +658,6 @@ app.post("/api/table/score", (req, res) => {
   t.scoreHome = h;
   t.scoreAway = a;
   saveState(state);
-  const baseDir = state.viewMode === "open" ? OBS_OPEN_DIR : OBS_COMP_DIR;
-  updateObsTable(tableId, t, state.viewMode, baseDir);
   res.json(t);
 });
 
@@ -1223,8 +674,6 @@ app.post("/api/table/clear", (req, res) => {
     history: []
   };
   saveState(state);
-  const baseDir = state.viewMode === "open" ? OBS_OPEN_DIR : OBS_COMP_DIR;
-  updateObsTable(tableId, state.tables[tableId], state.viewMode, baseDir);
   res.json(state.tables[tableId]);
 });
 
@@ -1268,8 +717,6 @@ app.post("/api/table/finish", (req, res) => {
   };
 
   saveState(state);
-  const baseDir = state.viewMode === "open" ? OBS_OPEN_DIR : OBS_COMP_DIR;
-  updateObsTable(tableId, state.tables[tableId], state.viewMode, baseDir);
   res.json({ teams: state.teams, history: state.history });
 });
 
@@ -1334,16 +781,13 @@ app.post("/api/reset-all", (req, res) => {
     fs.unlinkSync(STATE_FILE);
   }
   const state = initState();
-  clearObsFiles();
   res.json(state);
 });
 
 // --- Start server -----------------------------------------------------------
 
-// Reset state and OBS files on server start
+// Reset state on server start
 initState();
-clearObsFiles();
-obsRemote.startBackgroundSync(loadState);
 
 app.listen(PORT, () => {
   console.log(`🎱 ADSCR v1.1 backend running at http://localhost:${PORT}`);
