@@ -1034,8 +1034,8 @@ function renderSubstitutionSelectors() {
   const available = completedQ1 >= 4 && active >= 2;
   const enabled = available;
 
-  const homeBase = getBaseForQuadro("home", 2);
-  const awayBase = getBaseForQuadro("away", 2);
+  const homeBase = getBaseForQuadro("home", active);
+  const awayBase = getBaseForQuadro("away", active);
 
   const homeAll = getPlayersForSide("home");
   const awayAll = getPlayersForSide("away");
@@ -1667,6 +1667,7 @@ async function saveQuadroSelections() {
     state.quadroBases.home[i] = home.slice();
     state.quadroBases.away[i] = baseAway.slice();
   }
+  recomputeQuadroBasesFromSubs();
   await fetch("/api/quadro-selections", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
