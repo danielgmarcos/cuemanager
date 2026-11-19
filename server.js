@@ -7,7 +7,6 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 import axios from "axios";
 import { CookieJar } from "tough-cookie";
@@ -24,7 +23,14 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-app.use(express.static(__dirname));
+// páginas HTML nunca em cache (OBS/browser veem sempre a versão mais recente)
+app.use(express.static(__dirname, {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith(".html") || filePath.endsWith(".js")) {
+      res.setHeader("Cache-Control", "no-store");
+    }
+  }
+}));
 
 // --- Directories & state file ----------------------------------------------
 
@@ -68,6 +74,7 @@ function initState() {
     },
     viewMode: "teams",
     competitionId: null,
+    matchInfo: null,
     quadroSelections: {
       home: ["", "", "", ""],
       away: ["", "", "", ""]
@@ -246,7 +253,35 @@ function isPortalPlaceholder(value) {
 function parseOpenBoardRows($) {
   const matches = [];
 
-  $("#tbl_Resultados tr").each((_, row) => {
+  // Layout atual do portal: cartões div.fpb-match-card dentro de #tbl_Resultados
+  $("#tbl_Resultados .fpb-match-card").each((_, card) => {
+    const $card = $(card);
+    const meta = $card.find(".fpb-match-meta span");
+    const scheduledAt = normalizePortalText($card.find(".fpb-match-date").text() || $(meta[0]).text());
+    const location = normalizePortalText(meta.length > 1 ? $(meta[meta.length - 1]).text() : "");
+    const playerHome = normalizePortalText($card.find(".fpb-player-a .fpb-player-name").text() || $card.find(".fpb-player-a").text());
+    const playerAway = normalizePortalText($card.find(".fpb-player-b .fpb-player-name").text() || $card.find(".fpb-player-b").text());
+    const resultText = normalizePortalText($card.find(".fpb-match-score").text());
+
+    if (!playerHome || !playerAway) return;
+
+    const gameNumberMatch = resultText.match(/Jogo\s*n\S*\s*(\d+)/i);
+    const scoreMatch = resultText.match(/(\d+)\s*-\s*(\d+)/);
+
+    matches.push({
+      gameNumber: gameNumberMatch ? Number.parseInt(gameNumberMatch[1], 10) : null,
+      playerHome,
+      playerAway,
+      resultText,
+      location,
+      scheduledAt,
+      portalScoreHome: scoreMatch ? Number.parseInt(scoreMatch[1], 10) : null,
+      portalScoreAway: scoreMatch ? Number.parseInt(scoreMatch[2], 10) : null
+    });
+  });
+
+  // Layout antigo (tabela) – mantido como fallback
+  if (!matches.length) $("#tbl_Resultados tr").each((_, row) => {
     const cells = $(row).find("td");
     if (cells.length < 5) return;
 
@@ -384,19 +419,43 @@ app.get("/api/portal/teams", async (req, res) => {
       "https://portalbilhar.pt/Publico/BT/Publico_P_Eqp.aspx?Variante=Pool_Portugu%C3%AAs&org=118&Comp=" +
       encodeURIComponent(comp);
 
-    const html = await (await fetch(url)).text();
-    const $ = cheerio.load(html);
+    const response = await client.get(url, { headers: getPortalHeaders() });
+    const $ = cheerio.load(response.data);
 
     const teams = [];
+    const seen = new Set();
+    const pushTeam = (href, name, extra = {}) => {
+      const idMatch = String(href || "").match(/Eqp=([^&]+)/i);
+      const cleanName = normalizePortalText(name);
+      if (!idMatch || !cleanName || seen.has(idMatch[1])) return;
+      seen.add(idMatch[1]);
+      teams.push({ id: idMatch[1], name: cleanName, ...extra });
+    };
 
-    $("a[href*='Publico_Eqp.aspx?Eqp=']").each((_, el) => {
-      const href = $(el).attr("href");
-      const name = $(el).text().trim();
-      const idMatch = href.match(/Eqp=([^&]+)/);
-      if (idMatch && name) {
-        teams.push({ id: idMatch[1], name });
+    // Tabela de inscrições: Clube | Equipa | Estado | Distrito | Código
+    $("#tbl_inscricao tbody tr").each((_, row) => {
+      const link = $(row).find("a[href*='Publico_Eqp.aspx?Eqp=']").first();
+      if (!link.length) return;
+      const cells = $(row).find("td");
+      const logoSrc = $(row).find("img").first().attr("src");
+      let logoUrl = null;
+      if (logoSrc) {
+        try { logoUrl = new URL(logoSrc, url).toString(); } catch { logoUrl = null; }
       }
+      pushTeam(link.attr("href"), link.text(), {
+        club: normalizePortalText($(cells[0]).text()) || null,
+        logoUrl
+      });
     });
+
+    // Fallback: qualquer link de equipa na página
+    if (!teams.length) {
+      $("a[href*='Publico_Eqp.aspx?Eqp=']").each((_, el) => {
+        pushTeam($(el).attr("href"), $(el).text());
+      });
+    }
+
+    teams.sort((a, b) => a.name.localeCompare(b.name, "pt"));
 
     res.json(teams);
   } catch (err) {
@@ -411,14 +470,9 @@ app.get("/api/portal/team", async (req, res) => {
   if (!eqp) return res.status(400).json({ error: "Missing ?eqp=" });
 
   try {
-    const url = `https://portalbilhar.pt/Publico/BT/Publico_Eqp.aspx?Eqp=${eqp}`;
+    const url = `${TEAM_PAGE_BASE}${encodeURIComponent(eqp)}`;
     const response = await client.get(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0",
-        Accept: "text/html",
-        "Accept-Language": "pt-PT,pt;q=0.9",
-      },
+      headers: getPortalHeaders()
     });
 
     const $ = cheerio.load(response.data);
@@ -426,34 +480,25 @@ app.get("/api/portal/team", async (req, res) => {
     const players = [];
     let logoUrl = null;
 
-    // procurar todas as linhas da(s) tabela(s)
-    $("table tr").each((i, row) => {
-      const tds = $(row).find("td");
-      if (tds.length < 2) return; // precisamos pelo menos de 2 colunas
-
-      // normalmente: 0 = nº FPB, 1 = Nome, resto = info / Ok / etc
-      let rawName = $(tds[1]).text().trim();
-      if (!rawName) return;
-
-      // filtrar cabeçalhos / lixo óbvio
-      if (/nome/i.test(rawName)) return;      // linha "Nome"
-      if (/jogador/i.test(rawName)) return;   // algum header
-      if (/serie/i.test(rawName)) return;
-      if (/fase/i.test(rawName)) return;
-
-      // remover “Ok” ou coisas desse género que possam vir agarradas
-      rawName = rawName.replace(/\bOk\b/gi, "").trim();
-
-      // se ainda for só números, ignora
-      if (!rawName || /^\d+$/.test(rawName)) return;
-
-      // normalizar espaços
-      const name = rawName.replace(/\s+/g, " ");
-
-      players.push(name);
+    // Plantel: tabela #gv_plantel, nome do atleta na 1.ª coluna (link Publico_Atl.aspx)
+    $("#gv_plantel tbody tr").each((_, row) => {
+      const firstCell = $(row).find("td").first();
+      if (!firstCell.length) return;
+      const name = normalizePortalText(firstCell.find("a").first().text() || firstCell.text());
+      if (!name || /^\d+$/.test(name)) return;
+      if (!players.includes(name)) players.push(name);
     });
 
-    let imgEl = $("img[src*='Imagens/Clubes'], img[src*='imagens/clubes']").first();
+    // Fallback: qualquer link de atleta na página
+    if (!players.length) {
+      $("a[href*='Publico_Atl.aspx']").each((_, el) => {
+        const name = normalizePortalText($(el).text());
+        if (name && !players.includes(name)) players.push(name);
+      });
+    }
+
+    let imgEl = $("img[id$='img_Equipa']").first();
+    if (!imgEl.length) imgEl = $("img[src*='Imagens/Clubes'], img[src*='imagens/clubes']").first();
     if (!imgEl || !imgEl.length) {
       imgEl = $("img").filter((_, el) => {
         const src = ($(el).attr("src") || "").toLowerCase();
@@ -486,6 +531,211 @@ app.get("/api/portal/team", async (req, res) => {
 
 
 
+// --- PortalBilhar: informação do encontro (competição / série / jornada) ----
+
+const TEAM_COMP_URL = "https://portalbilhar.pt/Publico/BT/Publico_P_Eqp.aspx?Variante=Pool_Portugu%C3%AAs&org=118&Comp=";
+
+function readSelect($, id) {
+  const options = $(`#${id} option`).map((_, el) => ({
+    value: $(el).attr("value") || "",
+    label: normalizePortalText($(el).text()),
+    selected: $(el).is("[selected]")
+  })).get().filter(o => o.value);
+  const selected = options.find(o => o.selected) || options[0] || null;
+  return { options, selected };
+}
+
+// Simula a escolha de uma opção num <select> com __doPostBack (ASP.NET WebForms)
+async function portalPostback(url, $, selectName, value) {
+  const form = new URLSearchParams();
+  $("form input[type=hidden]").each((_, el) => {
+    const name = $(el).attr("name");
+    if (name) form.set(name, $(el).attr("value") || "");
+  });
+  $("form select").each((_, el) => {
+    const name = $(el).attr("name");
+    if (!name) return;
+    const v = $(el).find("option[selected]").attr("value") ?? $(el).find("option").first().attr("value");
+    form.set(name, v || "");
+  });
+  form.set("__EVENTTARGET", selectName);
+  form.set("__EVENTARGUMENT", "");
+  form.set(selectName, value);
+  const response = await client.post(url, form.toString(), {
+    headers: { ...getPortalHeaders(), "Content-Type": "application/x-www-form-urlencoded", Referer: url }
+  });
+  return cheerio.load(response.data);
+}
+
+// Jogos da página: cabeçalhos "Jornada Nº X" seguidos dos cartões dos jogos
+function parseTeamCompetitionMatches($) {
+  const matches = [];
+  let jornada = null;
+  $("#tbl_Resultados").children().each((_, el) => {
+    const $el = $(el);
+    if ($el.hasClass("fpb-round-header")) {
+      const m = normalizePortalText($el.text()).match(/(\d+)/);
+      jornada = m ? Number.parseInt(m[1], 10) : null;
+      return;
+    }
+    if (!$el.hasClass("fpb-match-card")) return;
+    const idOf = sel => (($el.find(`${sel} a[href*='Eqp=']`).attr("href") || "").match(/Eqp=([^&]+)/i) || [])[1] || null;
+    matches.push({
+      jornada,
+      homeId: idOf(".fpb-player-a"),
+      awayId: idOf(".fpb-player-b"),
+      date: normalizePortalText($el.find(".fpb-match-date").text()),
+      result: normalizePortalText($el.find(".fpb-match-score > div").first().text())
+    });
+  });
+  return matches;
+}
+
+function parsePortalDate(value) {
+  const m = String(value || "").match(/(\d{2})\/(\d{2})\/(\d{4})(?:\D+(\d{2}):(\d{2}))?/);
+  if (!m) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4] || 0), Number(m[5] || 0));
+}
+
+// Escolhe o jogo entre as duas equipas: mesma ordem casa/visitante primeiro, depois o mais próximo de hoje
+function pickMatch(matches, homeId, awayId) {
+  const candidates = matches.filter(m =>
+    (m.homeId === homeId && m.awayId === awayId) || (m.homeId === awayId && m.awayId === homeId)
+  );
+  if (!candidates.length) return null;
+  const now = Date.now();
+  const score = m => {
+    const d = parsePortalDate(m.date);
+    const dist = d ? Math.abs(d.getTime() - now) : Number.MAX_SAFE_INTEGER / 2;
+    return (m.homeId === homeId ? 0 : 1e13) + dist;
+  };
+  return candidates.sort((a, b) => score(a) - score(b))[0];
+}
+
+// "PPT Campeonato Distrital - Coimbra - 3.ª Divisão" -> ["Distrital de Coimbra", "3.ª Divisão"]
+function splitCompetitionName(name) {
+  const clean = normalizePortalText(name).replace(/^PPT\s+/i, "").replace(/^Campeonato\s+/i, "");
+  const parts = clean.split(/\s+-\s+/);
+  if (parts.length === 3) return [`${parts[0]} de ${parts[1]}`, parts[2]];
+  if (parts.length === 2) return [parts[0], parts[1]];
+  return [clean, ""];
+}
+
+async function fetchMatchInfo(comp, homeId, awayId) {
+  const url = TEAM_COMP_URL + encodeURIComponent(comp);
+  const first = cheerio.load((await client.get(url, { headers: getPortalHeaders() })).data);
+
+  const competitionName = normalizePortalText($selText(first, "dd_competicao")) || comp;
+  const fases = readSelect(first, "dd_fase");
+  const multiFase = fases.options.length > 1;
+
+  let found = null;
+  // Percorre fases e séries até encontrar o jogo entre as duas equipas
+  for (const fase of (fases.options.length ? fases.options : [null])) {
+    let $f = first;
+    if (fase && fases.selected && fase.value !== fases.selected.value) {
+      $f = await portalPostback(url, first, first("#dd_fase").attr("name"), fase.value);
+    }
+    const series = readSelect($f, "dd_serie");
+    const multiSerie = series.options.length > 1;
+    for (const serie of (series.options.length ? series.options : [null])) {
+      let $s = $f;
+      const current = readSelect($f, "dd_serie").selected;
+      if (serie && current && serie.value !== current.value) {
+        $s = await portalPostback(url, $f, $f("#dd_serie").attr("name"), serie.value);
+      }
+      const match = pickMatch(parseTeamCompetitionMatches($s), homeId, awayId);
+      if (match) {
+        found = { match, fase: multiFase ? fase : null, serie: multiSerie ? serie : null };
+        break;
+      }
+    }
+    if (found) break;
+  }
+
+  const [line1, line2base] = splitCompetitionName(competitionName);
+  const details = [line2base];
+  if (found?.fase) details.push(found.fase.label);
+  if (found?.serie) details.push(`${found.serie.label}.ª Série`);
+  let line2 = details.filter(Boolean).join(", ");
+  if (Number.isFinite(found?.match?.jornada)) line2 += `${line2 ? " · " : ""}Jornada ${found.match.jornada}`;
+
+  return {
+    key: `${comp}|${homeId}|${awayId}`,
+    competitionId: comp,
+    competitionName,
+    fase: found?.fase?.label || null,
+    serie: found?.serie?.label || null,
+    jornada: found?.match?.jornada ?? null,
+    date: found?.match?.date || null,
+    lines: [line1, line2].filter(Boolean),
+    found: Boolean(found),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function $selText($, id) {
+  const sel = $(`#${id} option[selected]`).first();
+  return sel.length ? sel.text() : $(`#${id} option`).first().text();
+}
+
+// Atualiza state.matchInfo em segundo plano quando competição/equipas mudam
+let matchInfoPending = null;
+function refreshMatchInfo(force = false) {
+  const state = loadState();
+  const comp = state.competitionId;
+  const homeId = state.teams?.home?.id;
+  const awayId = state.teams?.away?.id;
+  if (!comp || !homeId || !awayId) {
+    if (state.matchInfo) {
+      state.matchInfo = null;
+      saveState(state);
+    }
+    return Promise.resolve(null);
+  }
+  const key = `${comp}|${homeId}|${awayId}`;
+  if (!force && state.matchInfo?.key === key) return Promise.resolve(state.matchInfo);
+  if (!force && matchInfoPending?.key === key) return matchInfoPending.promise;
+
+  const promise = fetchMatchInfo(comp, homeId, awayId)
+    .then(info => {
+      const latest = loadState();
+      const latestKey = `${latest.competitionId}|${latest.teams?.home?.id}|${latest.teams?.away?.id}`;
+      if (latestKey === key) {
+        latest.matchInfo = info;
+        saveState(latest);
+      }
+      return info;
+    })
+    .catch(err => {
+      console.error("Match info scrape error:", err.message || err);
+      return null;
+    })
+    .finally(() => {
+      if (matchInfoPending?.key === key) matchInfoPending = null;
+    });
+  matchInfoPending = { key, promise };
+  return promise;
+}
+
+app.get("/api/portal/match-info", async (req, res) => {
+  const comp = normalizePortalText(req.query.comp);
+  const home = normalizePortalText(req.query.home);
+  const away = normalizePortalText(req.query.away);
+  if (!comp || !home || !away) return res.status(400).json({ error: "Faltam parâmetros ?comp=&home=&away=" });
+  try {
+    res.json(await fetchMatchInfo(comp, home, away));
+  } catch (err) {
+    console.error("Match info error:", err);
+    res.status(500).json({ error: "Falha ao obter informação do encontro." });
+  }
+});
+
+app.post("/api/portal/match-info/refresh", async (req, res) => {
+  const info = await refreshMatchInfo(true);
+  res.json({ matchInfo: info });
+});
+
 // --- API: state, teams, scores ---------------------------------------------
 
 // Get full state
@@ -498,6 +748,7 @@ app.post("/api/competition", (req, res) => {
   const state = loadState();
   state.competitionId = req.body.competitionId || null;
   saveState(state);
+  refreshMatchInfo();
   res.json({ competitionId: state.competitionId });
 });
 
@@ -563,6 +814,7 @@ app.post("/api/set-teams", async (req, res) => {
   state.teams.home = normalizeTeam(req.body.home || state.teams.home, "home");
   state.teams.away = normalizeTeam(req.body.away || state.teams.away, "away");
   saveState(state);
+  refreshMatchInfo();
   res.json(state.teams);
 });
 

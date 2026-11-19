@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<title>ADSCR Bilhar - Ecrã</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F3D2E;
+    --ink: #F4EFE3;
+    --ink-mid: rgba(244, 239, 227, 0.85);
+    --gold: #F2B705;
+    --dark: #13221B;
+  }
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+
+  #root {
+    width: 1920px; height: 1080px; box-sizing: border-box; padding: 32px 40px 36px;
+    display: flex; flex-direction: column; gap: 28px;
+    background: var(--bg); color: var(--ink);
+    font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; overflow: hidden;
+  }
+
+  .top { display: flex; align-items: center; gap: 36px; flex-shrink: 0; }
+  .club-logo { width: 220px; height: 220px; box-sizing: border-box; padding: 12px; border-radius: 14px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .club-logo img { width: 196px; height: 196px; object-fit: contain; display: block; }
+  .texts { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  .title { font-family: 'Anton', Impact, sans-serif; font-size: 84px; line-height: 1; text-transform: uppercase; }
+  .match { font-size: 44px; font-weight: 700; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .match .score { font-family: 'Anton', Impact, sans-serif; font-size: 48px; background: var(--gold); color: var(--dark); border-radius: 8px; padding: 0 14px; line-height: 1.2; }
+  .info { font-size: 32px; font-weight: 600; color: var(--ink-mid); }
+  .federation { align-self: flex-start; display: flex; align-items: center; gap: 14px; background: #FFFFFF; border-radius: 8px; padding: 10px 16px; flex-shrink: 0; }
+  .federation img { height: 59px; object-fit: contain; display: block; }
+
+  .sponsors { flex-grow: 1; min-height: 0; box-sizing: border-box; padding: 26px 34px 34px; border-radius: 14px; background: #FFFFFF; color: var(--dark); display: flex; flex-direction: column; gap: 16px; }
+  .sponsors-title { font-size: 30px; font-weight: 600; flex-shrink: 0; }
+  .sponsors-grid { flex-grow: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; }
+  .sponsors-row { display: flex; align-items: center; justify-content: center; column-gap: 38px; }
+  .sponsors-row img { object-fit: contain; display: block; }
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="top">
+    <div class="club-logo"><img id="clubLogo" src="logo.png" alt="Logótipo equipa visitada"></div>
+    <div class="texts">
+      <div class="title" id="title"></div>
+      <div class="match" id="match"></div>
+      <div class="info" id="info"></div>
+    </div>
+    <div class="federation">
+      <img src="assets/overlay/abc.jpg" alt="Associação de Bilhar de Coimbra" style="width: 60px">
+      <img src="assets/overlay/fpb.png" alt="Federação Portuguesa de Bilhar" style="width: 160px">
+    </div>
+  </div>
+
+  <div class="sponsors">
+    <div class="sponsors-title">Com o apoio de:</div>
+    <div class="sponsors-grid" id="sponsorsGrid"></div>
+  </div>
+</div>
+
+<script src="assets/overlay/patrocinadores.js"></script>
+<script>
+/* ================= CONFIGURAÇÃO (pode alterar) =================
+   titulos: texto principal de cada ecrã (?tipo=comeca | fim)
+   mostrarResultadoNoFim: no ecrã de fim, mostra o resultado final entre as equipas
+   tamanhoPorPeso: tamanho máximo (píxeis) dos logótipos dos patrocinadores
+   (lista de patrocinadores: assets/overlay/patrocinadores.js) */
+var CONFIG = {
+  titulos: {
+    comeca: "A transmissão começa em breve",
+    fim: "Obrigado por nos acompanhar"
+  },
+  mostrarResultadoNoFim: true,
+  tamanhoPorPeso: {
+    4: { largura: 316, altura: 172 },
+    2: { largura: 184, altura: 113 },
+    1: { largura: 124, altura: 100 }
+  }
+};
+/* =============================================================== */
+
+const REFRESH_MS = 2000;
+const DEFAULT_LOGO = "logo.png";
+const tipo = new URLSearchParams(location.search).get("tipo") === "fim" ? "fim" : "comeca";
+let lastSignature = "";
+
+document.title = `ADSCR Bilhar - Ecrã ${tipo === "fim" ? "fim" : "início"}`;
+document.getElementById("title").textContent = CONFIG.titulos[tipo] || "";
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function renderSponsors() {
+  const grid = document.getElementById("sponsorsGrid");
+  const list = (window.PATROCINADORES || []).filter(p => p.peso > 0);
+  const pesos = [...new Set(list.map(p => p.peso))].sort((a, b) => b - a);
+  grid.innerHTML = "";
+  pesos.forEach(peso => {
+    const row = document.createElement("div");
+    row.className = "sponsors-row";
+    const size = CONFIG.tamanhoPorPeso[peso] || { largura: 150, altura: 100 };
+    list.filter(p => p.peso === peso).forEach(p => {
+      const img = document.createElement("img");
+      img.src = p.src;
+      img.alt = p.nome;
+      img.style.maxWidth = `${size.largura}px`;
+      img.style.maxHeight = `${size.altura}px`;
+      row.appendChild(img);
+    });
+    grid.appendChild(row);
+  });
+}
+
+function updateLogo(img, path) {
+  if (img.dataset.src === path) return;
+  img.dataset.src = path;
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = DEFAULT_LOGO;
+  };
+  img.src = path;
+}
+
+function renderState(state) {
+  const home = state.teams?.home || {};
+  const away = state.teams?.away || {};
+  const lines = Array.isArray(state.matchInfo?.lines) ? state.matchInfo.lines : [];
+  const signature = JSON.stringify([home.name, home.logoUrl, home.score, away.name, away.score, lines]);
+  if (signature === lastSignature) return;
+  lastSignature = signature;
+
+  updateLogo(document.getElementById("clubLogo"), home.logoUrl || DEFAULT_LOGO);
+
+  const homeName = String(home.name || "").trim();
+  const awayName = String(away.name || "").trim();
+  const match = document.getElementById("match");
+  if (homeName || awayName) {
+    const hs = Number(home.score || 0);
+    const as = Number(away.score || 0);
+    const middle = tipo === "fim" && CONFIG.mostrarResultadoNoFim && (hs || as)
+      ? `<span class="score">${hs} - ${as}</span>`
+      : "<span>vs</span>";
+    match.innerHTML = `<span>${escapeHtml(homeName || "Visitado")}</span>${middle}<span>${escapeHtml(awayName || "Visitante")}</span>`;
+  } else {
+    match.innerHTML = "";
+  }
+
+  document.getElementById("info").textContent = lines.join(" · ");
+}
+
+async function refresh() {
+  try {
+    const response = await fetch("/api/state", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    renderState(await response.json());
+  } catch {
+    lastSignature = "";
+  }
+}
+
+renderSponsors();
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>

@@ -115,7 +115,7 @@ function applyState(newState) {
   localStorage.setItem("viewMode", viewMode);
   applyViewMode();
 
-  $("homeTeamName").textContent = state.teams.home.name || "Locais";
+  $("homeTeamName").textContent = state.teams.home.name || "Visitado";
   $("awayTeamName").textContent = state.teams.away.name || "Visitantes";
   $("homeScore").textContent = state.teams.home.score || 0;
   $("awayScore").textContent = state.teams.away.score || 0;
@@ -739,7 +739,7 @@ function applyManualSide(side) {
   const nameInput = side === "home" ? $("homeManualName") : $("awayManualName");
   const playersInput = side === "home" ? $("homeManualPlayers") : $("awayManualPlayers");
 
-  const name = nameInput.value.trim() || (side === "home" ? "Locais" : "Visitantes");
+  const name = nameInput.value.trim() || (side === "home" ? "Visitado" : "Visitantes");
   const players = playersInput.value.split("\n").map(l => l.trim()).filter(p => p);
 
   state.teams[side] = {
@@ -2383,7 +2383,7 @@ function renderHistory() {
           <div class="ms-auto">
             <select id="w_${g.id}" class="form-select form-select-sm history-winner-select" style="width:120px"
                     onchange="saveHistoryEdit(${g.id})">
-              <option value="home" ${g.winnerSide === "home" ? "selected" : ""}>Locais</option>
+              <option value="home" ${g.winnerSide === "home" ? "selected" : ""}>Visitado</option>
               <option value="away" ${g.winnerSide === "away" ? "selected" : ""}>Visitantes</option>
             </select>
           </div>

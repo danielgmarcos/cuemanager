@@ -56,16 +56,25 @@ Layouts disponíveis:
 - `overlay_mesa1.html` -> Mesa 1 fixa
 - `overlay_mesa2.html` -> Mesa 2 fixa
 - `overlay.html?layout=scoreboard` -> só marcador
+- `ecra_comeca.html` -> ecrã "A transmissão começa em breve"
+- `ecra_fim.html` -> ecrã "Obrigado por nos acompanhar" (com resultado final)
 
-Cada overlay inclui `camera-slot` visuais para ajudar a posicionar manualmente as câmaras no OBS. O posicionamento das câmaras e a gestão de cenas ficam inteiramente do lado do OBS.
+Os ecrãs de início/fim mostram o logótipo da equipa visitada, "Visitado vs Visitante", a competição/série/jornada do PortalBilhar e todos os patrocinadores. Títulos e tamanhos editam-se no `CONFIG` de `ecra.html`.
+
+Todos os layouts usam o mesmo `overlay.html` (1920x1080): fundo verde com "buracos" transparentes onde entram as câmaras, painel central com equipas, logótipos e resultado, barra de jogadores em cada mesa e colunas de patrocinadores com rotação ponderada.
+
+- Fora do OBS, as zonas de câmara aparecem tracejadas ("CÂMARA (pré-visualização)") para facilitar o alinhamento. Dentro do OBS ficam transparentes.
+- Patrocinadores e pesos: lista única em `assets/overlay/patrocinadores.js` (usada pelo overlay e pelos ecrãs). Tempo da rotação: `CONFIG` em `overlay.html`. As imagens estão em `assets/overlay/`.
+- Layouts de mesa única (`overlay_mesa1.html` / `overlay_mesa2.html`): mantém-se a disposição das duas mesas (resultado ao centro) e a câmara da outra mesa é substituída pelo histórico de jogos terminados, com o vencedor a verde e o derrotado a vermelho.
+- O texto da competição (ex.: "Distrital de Coimbra / 3.ª Divisão, 1.ª Série · Jornada 7") vem do PortalBilhar: ao escolher competição e equipas, o servidor procura o jogo entre as duas equipas (em todas as fases/séries) e guarda-o em `state.matchInfo`. Com equipas manuais, o texto pode ser editado diretamente no overlay (no OBS: botão direito → Interagir).
+- Modo Open: esconde equipas e resultado de equipas e mostra o resultado de cada mesa na barra de jogadores.
 
 ### Configuração manual recomendada no OBS
 1. Criar as cenas que quiseres usar, por exemplo `2 Mesas`, `Mesa 1` e `Mesa 2`.
-1. Adicionar as câmaras manualmente em cada cena.
 1. Adicionar uma `Browser Source` com:
-   - URL: `http://localhost:3000/overlay.html`
+   - URL: `http://localhost:3000/overlay_duas_mesas.html` (ou `overlay_mesa1.html` / `overlay_mesa2.html`)
    - Resolução: `1920x1080`
-1. Ajustar as câmaras manualmente usando as caixas `camera-slot` mostradas no overlay.
+1. Colocar as câmaras **por baixo** da Browser Source, alinhadas com as zonas transparentes (608x1080 cada).
 
 ## API (resumo)
 - `GET /api/state`

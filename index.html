@@ -649,6 +649,8 @@
       <a class="btn btn-outline-secondary" href="overlay_mesa1.html" target="_blank" rel="noopener noreferrer">Mesa 1</a>
       <a class="btn btn-outline-secondary" href="overlay_mesa2.html" target="_blank" rel="noopener noreferrer">Mesa 2</a>
       <a class="btn btn-outline-secondary" href="overlay.html?layout=scoreboard" target="_blank" rel="noopener noreferrer">Só marcador</a>
+      <a class="btn btn-outline-secondary" href="ecra_comeca.html" target="_blank" rel="noopener noreferrer">Ecrã início</a>
+      <a class="btn btn-outline-secondary" href="ecra_fim.html" target="_blank" rel="noopener noreferrer">Ecrã fim</a>
     </div>
   </div>
 
@@ -723,18 +725,18 @@
           <!-- HOME SIDE -->
           <div class="col-md-6">
             <div class="d-flex align-items-center gap-2 mb-2">
-              <img id="homeTeamLogo" src="logo.png" alt="Locais" style="height:36px;width:36px;object-fit:contain" />
-              <span id="homeAccentSwatch" class="accent-swatch" title="Cor destaque locais"></span>
-              <h5 class="mb-0">Locais</h5>
+              <img id="homeTeamLogo" src="logo.png" alt="Visitado" style="height:36px;width:36px;object-fit:contain" />
+              <span id="homeAccentSwatch" class="accent-swatch" title="Cor destaque visitado"></span>
+              <h5 class="mb-0">Visitado</h5>
             </div>
 
             <!-- PORTAL TEAM -->
             <select id="homeTeamSelect" class="form-select mb-2"></select>
 
             <!-- MANUAL TEAM -->
-            <input id="homeManualName" class="form-control form-control-lg mb-2 d-none" placeholder="Nome equipa locais" />
+            <input id="homeManualName" class="form-control form-control-lg mb-2 d-none" placeholder="Nome equipa visitada" />
             <textarea id="homeManualPlayers" class="form-control d-none" rows="4"
-              placeholder="Jogadores locais (um por linha)"></textarea>
+              placeholder="Jogadores da equipa visitada (um por linha)"></textarea>
             <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
               <label class="form-label m-0 small fw-semibold">Cor destaque transmissão</label>
               <div id="homeAccentPalette" class="accent-palette">
@@ -884,7 +886,7 @@
             <div class="quadro-scoreline mb-3">
               <div class="d-flex align-items-center gap-2 flex-grow-1">
                 <img id="homeScoreLogo" src="logo.png" alt="Equipa A" style="height:28px;width:28px;object-fit:contain" />
-                <span id="homeHeaderAccentSwatch" class="accent-swatch" title="Cor destaque locais"></span>
+                <span id="homeHeaderAccentSwatch" class="accent-swatch" title="Cor destaque visitado"></span>
                 <h4 id="homeTeamName" class="m-0 team-name">Equipa A</h4>
               </div>
 
@@ -1098,8 +1100,8 @@
                 <button class="btn btn-sm btn-secondary" onclick="undoPoint(1)">↩</button>
               </div>
               <div id="table1Finish" class="d-flex gap-2">
-                <button class="btn btn-sm btn-success" onclick="finishGame(1,'home')">Locais venceram</button>
-                <button class="btn btn-sm btn-danger" onclick="finishGame(1,'away')">Visitantes venceram</button>
+                <button class="btn btn-sm btn-success" onclick="finishGame(1,'home')">Visitado venceu</button>
+                <button class="btn btn-sm btn-danger" onclick="finishGame(1,'away')">Visitante venceu</button>
               </div>
             </div>
 
@@ -1139,8 +1141,8 @@
                 <button class="btn btn-sm btn-secondary" onclick="undoPoint(2)">↩</button>
               </div>
               <div id="table2Finish" class="d-flex gap-2">
-                <button class="btn btn-sm btn-success" onclick="finishGame(2,'home')">Locais venceram</button>
-                <button class="btn btn-sm btn-danger" onclick="finishGame(2,'away')">Visitantes venceram</button>
+                <button class="btn btn-sm btn-success" onclick="finishGame(2,'home')">Visitado venceu</button>
+                <button class="btn btn-sm btn-danger" onclick="finishGame(2,'away')">Visitante venceu</button>
               </div>
             </div>
 

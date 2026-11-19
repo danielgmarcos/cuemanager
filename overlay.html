@@ -1,872 +1,506 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ADSCR Bilhar - Overlay</title>
-  <style>
-    :root {
-      --bg: rgba(14, 14, 16, 0.92);
-      --bg-soft: rgba(27, 27, 31, 0.82);
-      --panel: rgba(20, 20, 23, 0.9);
-      --line: rgba(255, 255, 255, 0.14);
-      --text: #f7f7f5;
-      --muted: rgba(255, 255, 255, 0.7);
-      --accent: #d7d9df;
-      --team-accent-home: #f2f2f2;
-      --team-accent-away: #d3a11d;
-      --metal-1: #6e747b;
-      --metal-2: #2e3339;
-      --metal-3: #a4aab0;
-      --shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
-      --radius-lg: 28px;
-      --radius-md: 18px;
-      --radius-sm: 12px;
-      --team-width: minmax(250px, 1fr);
-      --score-width: clamp(140px, 16vw, 190px);
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      margin: 0;
-      min-height: 100%;
-      background: transparent;
-      color: var(--text);
-      font-family: "Bahnschrift Condensed", "Arial Narrow", "Roboto Condensed", Arial, sans-serif;
-    }
-
-    body {
-      overflow: hidden;
-    }
-
-    .overlay {
-      min-height: 100vh;
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      padding: 16px 24px 136px;
-      gap: 14px;
-      position: relative;
-      isolation: isolate;
-    }
-
-    .overlay::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(circle at top left, rgba(255, 255, 255, 0.1), transparent 28%),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 36%);
-      pointer-events: none;
-      z-index: -2;
-    }
-
-    .overlay::after {
-      content: "";
-      position: absolute;
-      left: 24px;
-      right: 24px;
-      top: 14px;
-      height: 3px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.12));
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    .scoreboard {
-      display: grid;
-      grid-template-columns: var(--team-width) var(--score-width) var(--team-width);
-      align-items: stretch;
-      gap: 10px;
-    }
-
-    .team-panel,
-    .score-panel,
-    .table-card,
-    .brand-chip {
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      box-shadow: var(--shadow);
-    }
-
-    .team-panel {
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.02) 16%, rgba(0, 0, 0, 0.22) 17%, transparent 18%),
-        linear-gradient(180deg, #2d3339, #101318 54%, #2a2f35);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 18px;
-      min-width: 0;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .team-panel::before {
-      content: "";
-      position: absolute;
-      inset: 2px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 6px;
-      pointer-events: none;
-    }
-
-    .team-panel::after {
-      content: "";
-      position: absolute;
-      top: 8px;
-      bottom: 8px;
-      width: 5px;
-      border-radius: 999px;
-      background: var(--team-accent-home);
-      box-shadow: 0 0 10px color-mix(in srgb, var(--team-accent-home) 55%, transparent);
-    }
-
-    .team-panel.away {
-      flex-direction: row-reverse;
-      text-align: right;
-    }
-
-    .team-panel.home::after {
-      right: 10px;
-    }
-
-    .team-panel.away::after {
-      left: 10px;
-      background: var(--team-accent-away);
-      box-shadow: 0 0 10px color-mix(in srgb, var(--team-accent-away) 55%, transparent);
-    }
-
-    .team-logo-wrap {
-      width: 66px;
-      height: 66px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex: 0 0 auto;
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 2;
-      pointer-events: none;
-    }
-
-    .team-panel.home .team-logo-wrap {
-      left: 2px;
-    }
-
-    .team-panel.away .team-logo-wrap {
-      right: 2px;
-    }
-
-    .team-logo {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
-    }
-
-    .team-meta {
-      min-width: 0;
-      display: grid;
-      gap: 6px;
-      width: 100%;
-    }
-
-    .team-panel.home .team-meta {
-      padding-left: 62px;
-      padding-right: 20px;
-    }
-
-    .team-panel.away .team-meta {
-      padding-right: 62px;
-      padding-left: 20px;
-    }
-
-    .team-label {
-      font-size: 11px;
-      line-height: 1;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.78);
-    }
-
-    .team-name {
-      font-size: clamp(18px, 1.55vw, 28px);
-      line-height: 1;
-      font-weight: 800;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
-    }
-
-    .score-panel {
-      border-radius: 8px;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02) 16%, rgba(0, 0, 0, 0.22) 17%, transparent 18%),
-        linear-gradient(180deg, #383f46, #101318 55%, #31373d);
-      display: grid;
-      place-items: center;
-      padding: 6px 10px 8px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .score-panel::before {
-      content: "";
-      position: absolute;
-      inset: 2px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      pointer-events: none;
-      border-radius: 6px;
-    }
-
-    .score-label {
-      font-size: 10px;
-      line-height: 1;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
-    }
-
-    .score-value {
-      display: flex;
-      align-items: baseline;
-      justify-content: center;
-      gap: 8px;
-      font-size: clamp(30px, 2.8vw, 46px);
-      font-weight: 800;
-      line-height: 1;
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
-    }
-
-    .score-dash {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.5em;
-    }
-
-    .score-pill {
-      min-width: 0.98em;
-      min-height: 1.08em;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 6px;
-      border-radius: 5px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 235, 235, 0.92));
-      color: #050608;
-      line-height: 1;
-      text-shadow: none;
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
-    }
-
-    .middle-space {
-      position: relative;
-    }
-
-    .brand-chip {
-      justify-self: center;
-      align-self: center;
-      background: linear-gradient(180deg, rgba(99, 105, 113, 0.9), rgba(21, 24, 29, 0.96));
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 14px 8px 10px;
-      color: var(--muted);
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .brand-chip img {
-      width: 28px;
-      height: 28px;
-      object-fit: contain;
-      display: block;
-      filter: grayscale(1);
-    }
-
-    .tables-stage {
-      display: grid;
-      grid-template-rows: 1fr auto;
-      align-items: stretch;
-      justify-items: center;
-      width: 100%;
-      min-height: 0;
-      gap: 18px;
-    }
-
-    .camera-slots {
-      width: 100%;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-      align-self: stretch;
-    }
-
-    .camera-slot {
-      min-height: 0;
-      border-radius: 18px;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-        radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 40%);
-      position: relative;
-      overflow: hidden;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-    }
-
-    .camera-slot::before {
-      content: "";
-      position: absolute;
-      inset: 14px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      pointer-events: none;
-    }
-
-    .camera-slot::after {
-      content: "";
-      position: absolute;
-      inset: 50% auto auto 50%;
-      width: 56px;
-      height: 56px;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      pointer-events: none;
-    }
-
-    .camera-slot-label {
-      position: absolute;
-      top: 18px;
-      left: 18px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(8, 10, 14, 0.72);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.88);
-    }
-
-    .camera-slot-label::before {
-      content: "";
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.72);
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.36);
-    }
-
-    .camera-slot-copy {
-      position: absolute;
-      inset: auto 24px 22px 24px;
-      text-align: center;
-      font-size: 14px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.55);
-    }
-
-    .tables-shell {
-      width: 100%;
-      align-self: stretch;
-    }
-
-    .tables {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-      width: 100%;
-    }
-
-    .table-card {
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.03) 16%, rgba(0, 0, 0, 0.22) 17%, transparent 18%),
-        linear-gradient(180deg, #31363d, #0f1217 56%, #2e3339);
-      border-radius: 8px;
-      padding: 12px 16px 12px;
-      display: grid;
-      gap: 8px;
-      align-content: start;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .table-card::before {
-      content: "";
-      position: absolute;
-      inset: 2px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 8px;
-      pointer-events: none;
-    }
-
-    .table-header {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-      align-items: center;
-      gap: 16px;
-    }
-
-    .table-title {
-      grid-column: 1;
-      justify-self: start;
-      font-size: 11px;
-      line-height: 1;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      padding-left: 6px;
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
-    }
-
-    .table-score {
-      grid-column: 3;
-      justify-self: end;
-      font-size: 13px;
-      font-weight: 800;
-      color: #0a0b0d;
-      padding: 3px 8px;
-      border-radius: 5px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 235, 235, 0.92));
-      margin-right: 6px;
-      min-width: 60px;
-      text-align: center;
-      visibility: hidden;
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
-    }
-
-    .table-score.visible {
-      visibility: visible;
-    }
-
-    .table-score.hidden {
-      display: none;
-    }
-
-    .players {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-      align-items: center;
-      gap: 10px;
-    }
-
-    .table-card.idle .players {
-      grid-template-columns: 1fr;
-    }
-
-    .player-name {
-      font-size: clamp(17px, 1.35vw, 24px);
-      line-height: 1;
-      font-weight: 800;
-      text-transform: uppercase;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      min-width: 0;
-      position: relative;
-      padding-bottom: 6px;
-      padding-left: 6px;
-      padding-right: 6px;
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
-    }
-
-    .player-name.home {
-      text-align: left;
-    }
-
-    .player-name::after {
-      content: "";
-      position: absolute;
-      left: 6px;
-      right: 6px;
-      bottom: 0;
-      height: 4px;
-      border-radius: 999px;
-      background: var(--team-accent-home);
-      box-shadow: 0 0 10px color-mix(in srgb, var(--team-accent-home) 55%, transparent);
-    }
-
-    .player-name.away {
-      text-align: right;
-    }
-
-    .player-name.away::after {
-      background: var(--team-accent-away);
-      box-shadow: 0 0 10px color-mix(in srgb, var(--team-accent-away) 55%, transparent);
-    }
-
-    .vs-badge {
-      font-size: 18px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.96);
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 6px;
-      border: none;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 16%, rgba(0, 0, 0, 0.2) 17%, transparent 18%),
-        linear-gradient(180deg, #2f343a, #0d1015 56%, #2d3238);
-      clip-path: polygon(18% 0%, 82% 0%, 100% 100%, 0% 100%);
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
-    }
-
-    .player-match-score {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-width: 78px;
-      padding: 3px 10px;
-      border-radius: 6px;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 16%, rgba(0, 0, 0, 0.22) 17%, transparent 18%),
-        linear-gradient(180deg, #383f46, #101318 55%, #31373d);
-      font-size: 18px;
-      font-weight: 800;
-      line-height: 1;
-      color: rgba(255, 255, 255, 0.96);
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-    }
-
-    .player-match-score .score-separator {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.8em;
-    }
-
-    .idle-copy {
-      font-size: 16px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--muted);
-      text-align: center;
-      padding: 8px 6px 4px;
-    }
-
-    .layout-scoreboard .tables-stage,
-    .layout-scoreboard .brand-chip {
-      display: none;
-    }
-
-    .layout-tables .brand-chip {
-      display: none;
-    }
-
-    .layout-single .brand-chip {
-      display: none;
-    }
-
-    .layout-single .camera-slots {
-      grid-template-columns: 1fr;
-    }
-
-    .layout-single .camera-slot.hidden {
-      display: none;
-    }
-
-    .layout-single .tables {
-      grid-template-columns: 1fr;
-    }
-
-    .layout-single .table-card.hidden {
-      display: none;
-    }
-
-    .layout-single .player-name {
-      font-size: clamp(18px, 1.5vw, 24px);
-    }
-
-    .layout-scoreboard .overlay {
-      grid-template-rows: auto 1fr;
-    }
-
-    .mode-open .scoreboard {
-      display: none;
-    }
-
-    .mode-open .overlay {
-      grid-template-rows: 1fr auto;
-    }
-
-    .mode-open.layout-scoreboard .overlay {
-      grid-template-rows: 1fr;
-    }
-
-    @media (max-width: 1200px) {
-      .scoreboard {
-        grid-template-columns: 1fr;
-      }
-
-      .score-panel {
-        min-height: 96px;
-      }
-
-      .tables {
-        grid-template-columns: 1fr;
-      }
-
-      .camera-slots {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 720px) {
-      .overlay {
-        padding-bottom: 108px;
-      }
-    }
-  </style>
+<meta charset="utf-8">
+<title>ADSCR Bilhar - Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F3D2E;
+    --ink: #F4EFE3;
+    --ink-soft: rgba(244, 239, 227, 0.65);
+    --ink-mid: rgba(244, 239, 227, 0.85);
+    --gold: #F2B705;
+    --dark: #13221B;
+    --live: #D62828;
+    --team-accent-home: #F4EFE3;
+    --team-accent-away: #F2B705;
+  }
+
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  [contenteditable] { outline: none; cursor: text; }
+
+  #root {
+    width: 1920px; height: 1080px; box-sizing: border-box; display: flex;
+    position: relative; z-index: 0; background: transparent; color: var(--ink);
+    font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; overflow: hidden;
+  }
+  #bg { position: absolute; inset: 0; z-index: -1; background: var(--bg); }
+
+  /* --- colunas de patrocinadores --- */
+  .side { width: 176px; flex-shrink: 0; box-sizing: border-box; padding: 14px 12px; display: flex; flex-direction: column; }
+  .side-box { flex-grow: 1; box-sizing: border-box; padding: 14px 8px; border-radius: 8px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .side-sep { width: 70%; height: 2px; background: #D9D4C7; flex-shrink: 0; }
+  .rot-slot { flex-grow: 1; flex-basis: 0; position: relative; width: 100%; }
+  .rot-slot img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 136px; object-fit: contain; display: block; opacity: 0; transition: opacity 1s; }
+  .rot-slot img.on { opacity: 1; }
+
+  /* --- câmaras (buracos transparentes) --- */
+  .cam { width: 608px; height: 1080px; flex-shrink: 0; position: relative; }
+
+  .table-bar {
+    position: absolute; left: 12px; right: 12px; bottom: 12px; box-sizing: border-box;
+    padding: 8px 16px 10px; border-radius: 8px; background: rgba(8, 31, 23, 0.88);
+    display: flex; flex-direction: column; gap: 6px; text-align: left; color: var(--ink);
+  }
+  .table-title { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: var(--ink-soft); }
+  .table-row { display: flex; align-items: flex-end; gap: 12px; }
+  .player { flex-grow: 1; flex-basis: 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .player.away { text-align: right; }
+  .player-name { font-size: 28px; font-weight: 800; line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player-line { height: 3px; }
+  .player.home .player-line { background: var(--team-accent-home); }
+  .player.away .player-line { background: var(--team-accent-away); }
+  .table-mid { font-size: 18px; font-weight: 700; color: var(--ink-soft); padding-bottom: 6px; white-space: nowrap; }
+  .table-mid.score { font-family: 'Anton', Impact, sans-serif; font-size: 30px; color: var(--gold); padding-bottom: 0; }
+  .table-idle { font-size: 26px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-soft); }
+
+  /* --- painel central --- */
+  .centre { width: 352px; flex-shrink: 0; box-sizing: border-box; padding: 22px 14px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; }
+  .head { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .live { display: flex; align-items: center; gap: 10px; background: var(--live); color: #FFFFFF; font-size: 24px; font-weight: 700; letter-spacing: 3px; padding: 5px 14px; flex-shrink: 0; }
+  .live span { width: 11px; height: 11px; border-radius: 6px; background: #FFFFFF; }
+  .competition { font-size: 21px; font-weight: 600; line-height: 1.15; color: var(--ink-mid); }
+  .team { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+  .team-label { font-size: 16px; font-weight: 700; letter-spacing: 3px; color: var(--ink-soft); }
+  .team-logo-box { width: 78px; height: 100px; box-sizing: border-box; padding: 4px; border-radius: 6px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .team-logo-box img { width: 70px; height: 92px; object-fit: contain; display: block; }
+  .team-name { font-family: 'Anton', Impact, sans-serif; font-size: 28px; line-height: 1.02; text-transform: uppercase; }
+  .team-line { width: 60%; height: 4px; }
+  .team.home .team-line { background: var(--team-accent-home); }
+  .team.away .team-line { background: var(--team-accent-away); }
+  .result { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .result-label { font-size: 18px; font-weight: 700; letter-spacing: 4px; color: var(--ink-soft); }
+  .result-row { display: flex; align-items: center; gap: 12px; }
+  .result-pill { width: 80px; height: 92px; border-radius: 8px; background: var(--gold); color: var(--dark); display: flex; align-items: center; justify-content: center; font-family: 'Anton', Impact, sans-serif; font-size: 76px; line-height: 1; }
+  .result-dash { font-family: 'Anton', Impact, sans-serif; font-size: 36px; color: var(--ink-soft); }
+  .federation { display: flex; align-items: center; gap: 12px; background: #FFFFFF; border-radius: 8px; padding: 8px 14px; flex-shrink: 0; }
+  .federation img { height: 40px; object-fit: contain; display: block; }
+
+  /* --- layouts ---
+     tables (omissão): patrocinadores | mesa 1 | centro | mesa 2 | patrocinadores
+     single (?table=1): patrocinadores | mesa 1    | centro | histórico | patrocinadores
+     single (?table=2): patrocinadores | histórico | centro | mesa 2    | patrocinadores
+     scoreboard: só o painel central */
+  #sideL { order: 0; } #cam1 { order: 1; } #centre { order: 2; } #cam2 { order: 3; } #sideR { order: 9; }
+
+  .layout-single .cam.hidden { display: none; }
+  .layout-single.table-1 .history { order: 3; }
+  .layout-single.table-2 .history { order: 1; }
+
+  /* histórico de jogos (mesa única: ocupa o lugar da outra mesa) */
+  .history { width: 608px; flex-shrink: 0; display: none; box-sizing: border-box; padding: 14px 12px; flex-direction: column; justify-content: center; }
+  .layout-single .history { display: flex; }
+  .history-box { max-height: 100%; box-sizing: border-box; padding: 16px 18px; border-radius: 8px; background: rgba(8, 31, 23, 0.88); display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+  .history-title { font-size: 18px; font-weight: 700; letter-spacing: 4px; color: var(--ink-soft); text-align: center; }
+  .history-head, .history-row { display: grid; grid-template-columns: 52px 1fr 1fr; align-items: center; column-gap: 12px; }
+  .history-head { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: var(--ink-soft); padding: 0 10px 6px; border-bottom: 2px solid rgba(244, 239, 227, 0.15); }
+  .history-head .away, .history-row .away { text-align: right; }
+  .history-list { display: flex; flex-direction: column; gap: 6px; }
+  .history-row { padding: 7px 10px; border-radius: 6px; background: rgba(244, 239, 227, 0.05); }
+  .history-num { font-family: 'Anton', Impact, sans-serif; font-size: 20px; color: var(--ink-soft); }
+  .history-name { font-size: 24px; font-weight: 800; line-height: 1.05; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-name.win { color: #5BD67A; }
+  .history-name.loss { color: #FF6B6B; }
+  .history-empty { font-size: 22px; font-weight: 600; color: var(--ink-soft); text-align: center; padding-top: 20px; }
+
+  /* modo Open: sem equipas nem resultado de equipas */
+  .mode-open .team, .mode-open .result { display: none; }
+  .mode-open .centre { justify-content: flex-start; gap: 40px; }
+  .mode-open .federation { margin-top: auto; }
+
+  /* pré-visualização fora do OBS */
+  html.preview body { background: #1A1F1C; }
+  html.preview .cam { background: repeating-linear-gradient(45deg, #2B312D 0 22px, #262B28 22px 44px); }
+  html.preview .cam::before { content: 'CÂMARA (pré-visualização)'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: rgba(244,239,227,.45); font: 700 30px 'Barlow Condensed', 'Arial Narrow', sans-serif; pointer-events: none; }
+</style>
 </head>
 <body class="layout-tables">
-  <main class="overlay">
-    <section class="scoreboard" aria-label="Marcador">
-      <article class="team-panel home">
-        <div class="team-logo-wrap">
-          <img class="team-logo" id="homeLogo" src="logo.png" alt="Logotipo equipa casa" />
-        </div>
-        <div class="team-meta">
-          <div class="team-label">Casa</div>
-          <div class="team-name" id="homeName">Locais</div>
-        </div>
-      </article>
+<div id="root">
+  <div id="bg"></div>
 
-      <article class="score-panel">
-        <div class="score-label" id="scoreLabel">Resultado</div>
-        <div class="score-value">
-          <span class="score-pill" id="homeScore">0</span>
-          <span class="score-dash">-</span>
-          <span class="score-pill" id="awayScore">0</span>
-        </div>
-      </article>
+  <div class="side" id="sideL">
+    <div class="side-box">
+      <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div>
+      <div class="side-sep"></div>
+      <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div>
+      <div class="side-sep"></div>
+      <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div>
+    </div>
+  </div>
 
-      <article class="team-panel away">
-        <div class="team-logo-wrap">
-          <img class="team-logo" id="awayLogo" src="logo.png" alt="Logotipo equipa visitante" />
-        </div>
-        <div class="team-meta">
-          <div class="team-label">Visitante</div>
-          <div class="team-name" id="awayName">Visitantes</div>
-        </div>
-      </article>
-    </section>
+  <div class="cam" id="cam1">
+    <div class="table-bar">
+      <div class="table-title">MESA 1</div>
+      <div class="table-row" id="table1Row"></div>
+    </div>
+  </div>
 
-    <section class="tables-stage" aria-label="Mesas">
-      <section class="camera-slots" aria-label="Guias de câmara">
-        <article class="camera-slot" id="cameraSlot1">
-          <div class="camera-slot-label">Camera Slot Mesa 1</div>
-          <div class="camera-slot-copy">Alinhar manualmente a câmara da mesa 1 nesta caixa</div>
-        </article>
+  <div class="centre" id="centre">
+    <div class="head">
+      <div class="live"><span></span>AO VIVO</div>
+      <div class="competition" data-k="competicao" contenteditable="true" spellcheck="false" data-multi></div>
+    </div>
 
-        <article class="camera-slot" id="cameraSlot2">
-          <div class="camera-slot-label">Camera Slot Mesa 2</div>
-          <div class="camera-slot-copy">Alinhar manualmente a câmara da mesa 2 nesta caixa</div>
-        </article>
-      </section>
+    <div class="team home">
+      <div class="team-label">VISITADO</div>
+      <div class="team-logo-box"><img id="homeLogo" src="logo.png" alt="Logótipo equipa visitada"></div>
+      <div class="team-name" id="homeName">Visitado</div>
+      <div class="team-line"></div>
+    </div>
 
-      <div class="tables-shell">
-        <section class="tables">
-          <article class="table-card" id="table1Card">
-            <header class="table-header">
-              <div class="table-title">Mesa 1</div>
-              <div class="table-score" id="table1Score"></div>
-            </header>
-            <div class="players" id="table1Players">
-              <div class="player-name home" id="table1Home">Jogador 1</div>
-              <div class="vs-badge">VS</div>
-              <div class="player-name away" id="table1Away">Jogador 2</div>
-            </div>
-          </article>
-
-          <article class="table-card" id="table2Card">
-            <header class="table-header">
-              <div class="table-title">Mesa 2</div>
-              <div class="table-score" id="table2Score"></div>
-            </header>
-            <div class="players" id="table2Players">
-              <div class="player-name home" id="table2Home">Jogador 1</div>
-              <div class="vs-badge">VS</div>
-              <div class="player-name away" id="table2Away">Jogador 2</div>
-            </div>
-          </article>
-        </section>
+    <div class="result">
+      <div class="result-label" id="scoreLabel">RESULTADO</div>
+      <div class="result-row">
+        <div class="result-pill" id="homeScore">0</div>
+        <div class="result-dash">-</div>
+        <div class="result-pill" id="awayScore">0</div>
       </div>
-    </section>
+    </div>
 
-  </main>
+    <div class="team away">
+      <div class="team-label">VISITANTE</div>
+      <div class="team-logo-box"><img id="awayLogo" src="logo.png" alt="Logótipo equipa visitante"></div>
+      <div class="team-name" id="awayName">Visitantes</div>
+      <div class="team-line"></div>
+    </div>
 
-  <script>
-    const REFRESH_MS = 1500;
-    const DEFAULT_LOGO = "logo.png";
-    let lastSignature = "";
-    let overlayConfig = { layout: "tables", table: "1" };
+    <div class="federation">
+      <img src="assets/overlay/abc.jpg" alt="Associação de Bilhar de Coimbra" style="width: 40px">
+      <img src="assets/overlay/fpb.png" alt="Federação Portuguesa de Bilhar" style="width: 108px">
+    </div>
+  </div>
 
-    function text(value, fallback) {
-      return String(value || "").trim() || fallback;
+
+  <div class="cam" id="cam2">
+    <div class="table-bar">
+      <div class="table-title">MESA 2</div>
+      <div class="table-row" id="table2Row"></div>
+    </div>
+  </div>
+
+  <div class="history" id="historyPanel">
+    <div class="history-box">
+      <div class="history-title">JOGOS</div>
+      <div class="history-head"><div>Nº</div><div>VISITADO</div><div class="away">VISITANTE</div></div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <div class="side" id="sideR">
+    <div class="side-box">
+      <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div>
+      <div class="side-sep"></div>
+      <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div>
+      <div class="side-sep"></div>
+      <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div>
+    </div>
+  </div>
+</div>
+
+<!-- patrocinadores: lista em assets/overlay/patrocinadores.js -->
+<div id="patrocinadores" style="display: none"></div>
+<script src="assets/overlay/patrocinadores.js"></script>
+
+<script>
+/* ================= CONFIGURAÇÃO (pode alterar) =================
+   tempoNoEcra: segundos que cada logótipo fica num quadro
+   (lista de patrocinadores e pesos: assets/overlay/patrocinadores.js)
+   alturaPorPeso: altura máxima do logótipo (píxeis) consoante o peso
+   competicaoPadrao: texto da competição quando não há informação do PortalBilhar
+                     (competição + série + jornada vêm do portal automaticamente;
+                     sem portal, o texto é editável no overlay com "Interagir" no OBS) */
+var CONFIG = {
+  tempoNoEcra: 30,
+  alturaPorPeso: { 4: 170, 2: 130, 1: 100 },
+  competicaoPadrao: ""
+};
+/* =============================================================== */
+
+// imagens escondidas usadas pela rotação (a partir de PATROCINADORES)
+(window.PATROCINADORES || []).forEach(p => {
+  const img = document.createElement("img");
+  img.dataset.id = p.id;
+  img.dataset.peso = p.peso;
+  img.src = p.src;
+  img.alt = p.nome;
+  document.getElementById("patrocinadores").appendChild(img);
+});
+
+const REFRESH_MS = 1500;
+const DEFAULT_LOGO = "logo.png";
+let lastSignature = "";
+let overlayConfig = { layout: "tables", table: "1" };
+
+if (!window.obsstudio) document.documentElement.classList.add("preview");
+
+function text(value, fallback) {
+  return String(value || "").trim() || fallback;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function trimLabel(value, maxLength) {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+// --- layout: ?layout=tables | single (&table=1|2) | scoreboard ---------------
+function setLayout() {
+  const params = new URLSearchParams(window.location.search);
+  let layout = (params.get("layout") || "tables").toLowerCase();
+  if (layout === "full") layout = "tables";
+  if (!["tables", "single", "scoreboard"].includes(layout)) layout = "tables";
+  const table = params.get("table") === "2" ? "2" : "1";
+  overlayConfig = { layout, table };
+
+  document.body.classList.remove("layout-tables", "layout-single", "layout-scoreboard", "table-1", "table-2");
+  document.body.classList.add(`layout-${layout}`, `table-${table}`);
+
+  document.getElementById("cam1").classList.toggle("hidden", layout === "single" && table !== "1");
+  document.getElementById("cam2").classList.toggle("hidden", layout === "single" && table !== "2");
+}
+
+// --- fundo com "buracos" transparentes para as câmaras -----------------------
+function holes() {
+  const root = document.getElementById("root");
+  const bg = document.getElementById("bg");
+  if (!bg || !root) return;
+  const rr = root.getBoundingClientRect();
+  const W = rr.width, H = rr.height, r = 8;
+  let d = `M0 0 H${W} V${H} H0 Z`;
+  document.querySelectorAll(".cam").forEach(c => {
+    const b = c.getBoundingClientRect();
+    if (!b.width || !b.height) return;
+    const x = b.left - rr.left, y = b.top - rr.top, w = b.width, h = b.height;
+    d += ` M${x + r} ${y} H${x + w - r} Q${x + w} ${y} ${x + w} ${y + r} V${y + h - r} Q${x + w} ${y + h} ${x + w - r} ${y + h} H${x + r} Q${x} ${y + h} ${x} ${y + h - r} V${y + r} Q${x} ${y} ${x + r} ${y} Z`;
+  });
+  bg.style.clipPath = `path(evenodd, '${d}')`;
+}
+
+// --- texto da competição ------------------------------------------------------
+// Vem do PortalBilhar (state.matchInfo). Sem portal, usa o texto editado à mão
+// no overlay (guardado localmente) ou CONFIG.competicaoPadrao.
+const COMPETITION_KEY = "overlay:competicao";
+let portalCompetitionHtml = null;
+
+function manualCompetitionHtml() {
+  let saved = null;
+  try { saved = localStorage.getItem(COMPETITION_KEY); } catch {}
+  return saved !== null ? saved : CONFIG.competicaoPadrao;
+}
+
+function renderCompetition() {
+  const html = portalCompetitionHtml ?? manualCompetitionHtml();
+  document.querySelectorAll("[data-k]").forEach(el => {
+    if (document.activeElement !== el && el.innerHTML !== html) el.innerHTML = html;
+  });
+}
+
+function setupEditable() {
+  document.querySelectorAll("[data-k]").forEach(el => {
+    el.addEventListener("input", () => {
+      if (portalCompetitionHtml !== null) return; // texto do portal não é guardado
+      try { localStorage.setItem(COMPETITION_KEY, el.innerHTML); } catch {}
+    });
+  });
+  window.addEventListener("storage", e => {
+    if (e.key === COMPETITION_KEY) renderCompetition();
+  });
+  renderCompetition();
+}
+
+// --- dados ao vivo (/api/state) ----------------------------------------------
+function updateLogo(img, path) {
+  if (img.dataset.src === path) return;
+  img.dataset.src = path;
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = DEFAULT_LOGO;
+  };
+  img.src = path;
+}
+
+function setTeamAccent(side, color) {
+  document.documentElement.style.setProperty(`--team-accent-${side}`, color);
+}
+
+function renderTable(tableId, table, isOpenMode) {
+  const row = document.getElementById(`table${tableId}Row`);
+  const hasGame = Boolean(table && table.gameId);
+
+  if (!hasGame) {
+    row.innerHTML = '<div class="table-idle">Mesa livre</div>';
+    return;
+  }
+
+  const home = escapeHtml(trimLabel(text(table.playerHome, "Jogador 1"), 28));
+  const away = escapeHtml(trimLabel(text(table.playerAway, "Jogador 2"), 28));
+  const mid = isOpenMode
+    ? `<div class="table-mid score">${Number(table.scoreHome || 0)} - ${Number(table.scoreAway || 0)}</div>`
+    : '<div class="table-mid">VS</div>';
+
+  row.innerHTML = `
+    <div class="player home"><div class="player-name">${home}</div><div class="player-line"></div></div>
+    ${mid}
+    <div class="player away"><div class="player-name">${away}</div><div class="player-line"></div></div>
+  `;
+}
+
+const HISTORY_MAX_ROWS = 20;
+
+function renderHistory(history) {
+  const list = document.getElementById("historyList");
+  if (!list) return;
+  const games = history
+    .filter(g => !g.isAdjustment && !g.isMeta && (g.winnerSide === "home" || g.winnerSide === "away"))
+    .map((g, idx) => ({ ...g, order: Number.isFinite(g.gameNumber) ? g.gameNumber : idx + 1 }))
+    .sort((a, b) => a.order - b.order)
+    .slice(-HISTORY_MAX_ROWS);
+
+  if (!games.length) {
+    list.innerHTML = '<div class="history-empty">Ainda sem jogos terminados</div>';
+    return;
+  }
+
+  list.innerHTML = games.map(g => {
+    const homeCls = g.winnerSide === "home" ? "win" : "loss";
+    const awayCls = g.winnerSide === "away" ? "win" : "loss";
+    const home = escapeHtml(trimLabel(text(g.playerHome, "Jogador 1"), 22));
+    const away = escapeHtml(trimLabel(text(g.playerAway, "Jogador 2"), 22));
+    return `<div class="history-row">
+      <div class="history-num">${g.order}</div>
+      <div class="history-name ${homeCls}">${home}</div>
+      <div class="history-name away ${awayCls}">${away}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderState(state) {
+  const viewMode = state.viewMode === "open" ? "open" : "competicao";
+  const home = state.teams?.home || {};
+  const away = state.teams?.away || {};
+  const tables = state.tables || {};
+  const signature = JSON.stringify({
+    viewMode,
+    home: [home.name, home.score, home.logoUrl, home.accentColor],
+    away: [away.name, away.score, away.logoUrl, away.accentColor],
+    table1: tables["1"],
+    table2: tables["2"],
+    matchInfo: state.matchInfo?.lines || null,
+    history: (state.history || []).map(g => [g.id, g.winnerSide, g.playerHome, g.playerAway, g.gameNumber])
+  });
+
+  if (signature === lastSignature) return;
+  lastSignature = signature;
+
+  document.body.classList.toggle("mode-open", viewMode === "open");
+  document.body.classList.toggle("mode-competition", viewMode !== "open");
+
+  document.getElementById("homeName").textContent = trimLabel(text(home.name, "Visitado"), 40);
+  document.getElementById("awayName").textContent = trimLabel(text(away.name, "Visitantes"), 40);
+  document.getElementById("homeScore").textContent = Number(home.score || 0);
+  document.getElementById("awayScore").textContent = Number(away.score || 0);
+  document.getElementById("scoreLabel").textContent = viewMode === "open" ? "CLASSIFICAÇÃO" : "RESULTADO";
+
+  updateLogo(document.getElementById("homeLogo"), home.logoUrl || DEFAULT_LOGO);
+  updateLogo(document.getElementById("awayLogo"), away.logoUrl || DEFAULT_LOGO);
+  setTeamAccent("home", home.accentColor || "#F4EFE3");
+  setTeamAccent("away", away.accentColor || "#F2B705");
+
+  renderTable("1", tables["1"], viewMode === "open");
+  renderTable("2", tables["2"], viewMode === "open");
+
+  renderHistory(state.history || []);
+
+  const lines = Array.isArray(state.matchInfo?.lines) ? state.matchInfo.lines : [];
+  portalCompetitionHtml = lines.length ? lines.map(escapeHtml).join("<br>") : null;
+  renderCompetition();
+}
+
+async function refresh() {
+  try {
+    const response = await fetch("/api/state", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    renderState(await response.json());
+  } catch {
+    lastSignature = "";
+  }
+}
+
+/* ROTAÇÃO PONDERADA DOS PATROCINADORES
+   - Tempo e pesos definidos em CONFIG, no início do script.
+   - Usa um "saco" com cada patrocinador repetido tantas vezes quanto o peso,
+     baralhado ao acaso: parece aleatório, mas em cada volta completa
+     a proporção 4:2:1 é cumprida à risca.
+   - Nunca mostra o mesmo patrocinador em dois quadros ao mesmo tempo. */
+function setupSponsors() {
+  const TEMPO = (CONFIG.tempoNoEcra || 30) * 1000;
+  const ALT_POR_PESO = CONFIG.alturaPorPeso || { 4: 170, 2: 130, 1: 100 };
+  const S = [...document.querySelectorAll("#patrocinadores img")]
+    .map(i => {
+      const p = CONFIG.pesos && CONFIG.pesos[i.dataset.id];
+      return { id: i.dataset.id, peso: p >= 0 ? p : +i.dataset.peso, src: i.src, alt: i.alt };
+    })
+    .filter(s => s.peso > 0);
+  const slots = [...document.querySelectorAll(".rot-slot")].filter(sl => sl.offsetParent !== null);
+  if (!S.length || !slots.length) return;
+
+  let saco = [];
+  function encher() {
+    saco = [];
+    S.forEach(s => { for (let k = 0; k < s.peso; k++) saco.push(s); });
+    for (let i = saco.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [saco[i], saco[j]] = [saco[j], saco[i]];
     }
-
-    function escapeHtml(value) {
-      return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
-    }
-
-    function trimLabel(value, maxLength) {
-      const normalized = String(value || "").replace(/\s+/g, " ").trim();
-      if (normalized.length <= maxLength) return normalized;
-      return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
-    }
-
-    function setLayout() {
-      const params = new URLSearchParams(window.location.search);
-      const layout = (params.get("layout") || "tables").toLowerCase();
-      const table = params.get("table") === "2" ? "2" : "1";
-      overlayConfig = { layout, table };
-      document.body.classList.remove(
-        "layout-full",
-        "layout-scoreboard",
-        "layout-tables",
-        "layout-single"
-      );
-      if (layout === "scoreboard" || layout === "tables" || layout === "single") {
-        document.body.classList.add(`layout-${layout}`);
-      } else if (layout === "full") {
-        document.body.classList.add("layout-full");
-      } else {
-        document.body.classList.add("layout-tables");
+  }
+  function noEcra() { return slots.map(sl => sl.dataset.id); }
+  function tirar() {
+    const usados = noEcra();
+    for (let tent = 0; tent < 2; tent++) {
+      if (!saco.length) encher();
+      for (let i = 0; i < saco.length; i++) {
+        if (usados.indexOf(saco[i].id) < 0) return saco.splice(i, 1)[0];
       }
-
-      document.getElementById("table1Card").classList.toggle("hidden", layout === "single" && table !== "1");
-      document.getElementById("table2Card").classList.toggle("hidden", layout === "single" && table !== "2");
-      document.getElementById("cameraSlot1").classList.toggle("hidden", layout === "single" && table !== "1");
-      document.getElementById("cameraSlot2").classList.toggle("hidden", layout === "single" && table !== "2");
+      encher();
     }
+    return S[Math.floor(Math.random() * S.length)];
+  }
+  function mostrar(sl) {
+    const s = tirar();
+    const on = sl.querySelector("img.on");
+    const off = on && on.classList.contains("a") ? sl.querySelector("img.b") : sl.querySelector("img.a");
+    off.src = s.src;
+    off.alt = s.alt;
+    off.style.maxHeight = Math.min(ALT_POR_PESO[s.peso] || 120, sl.clientHeight) + "px";
+    sl.dataset.id = s.id;
+    off.classList.add("on");
+    if (on) on.classList.remove("on");
+  }
 
-    function updateLogo(img, path) {
-      img.onerror = () => {
-        img.onerror = null;
-        img.src = DEFAULT_LOGO;
-      };
-      img.src = path;
-    }
+  slots.forEach(mostrar);
+  let k = 0;
+  const passo = TEMPO / slots.length;
+  setInterval(() => { mostrar(slots[k]); k = (k + 1) % slots.length; }, passo);
+}
 
-    function setTeamAccent(side, color) {
-      document.documentElement.style.setProperty(`--team-accent-${side}`, color);
-    }
-
-    function renderTable(tableId, table, isOpenMode) {
-      const hasGame = Boolean(table && table.gameId);
-      const card = document.getElementById(`table${tableId}Card`);
-      const players = document.getElementById(`table${tableId}Players`);
-      const score = document.getElementById(`table${tableId}Score`);
-
-      card.classList.toggle("idle", !hasGame);
-
-      if (!hasGame) {
-        players.innerHTML = '<div class="idle-copy">Mesa livre</div>';
-        score.classList.remove("visible");
-        score.textContent = "";
-        return;
-      }
-
-      if (isOpenMode) {
-        players.innerHTML = `
-          <div class="player-name home">${escapeHtml(trimLabel(text(table.playerHome, "Jogador 1"), 28))}</div>
-          <div class="player-match-score">
-            <span>${Number(table.scoreHome || 0)}</span>
-            <span class="score-separator">-</span>
-            <span>${Number(table.scoreAway || 0)}</span>
-          </div>
-          <div class="player-name away">${escapeHtml(trimLabel(text(table.playerAway, "Jogador 2"), 28))}</div>
-        `;
-        score.textContent = "";
-        score.classList.remove("visible");
-        score.classList.add("hidden");
-      } else {
-        players.innerHTML = `
-          <div class="player-name home">${escapeHtml(trimLabel(text(table.playerHome, "Jogador 1"), 28))}</div>
-          <div class="vs-badge">VS</div>
-          <div class="player-name away">${escapeHtml(trimLabel(text(table.playerAway, "Jogador 2"), 28))}</div>
-        `;
-        score.textContent = "";
-        score.classList.remove("visible");
-        score.classList.remove("hidden");
-      }
-    }
-
-    function renderState(state) {
-      const viewMode = state.viewMode === "open" ? "open" : "competicao";
-      const home = state.teams?.home || {};
-      const away = state.teams?.away || {};
-      const tables = state.tables || {};
-      const signature = JSON.stringify({
-        viewMode,
-        homeName: home.name,
-        awayName: away.name,
-        homeScore: home.score,
-        awayScore: away.score,
-        table1: tables["1"],
-        table2: tables["2"]
-      });
-
-      if (signature === lastSignature) {
-        return;
-      }
-      lastSignature = signature;
-      document.body.classList.toggle("mode-open", viewMode === "open");
-      document.body.classList.toggle("mode-competition", viewMode !== "open");
-
-      document.getElementById("homeName").textContent = trimLabel(text(home.name, "Locais"), 34);
-      document.getElementById("awayName").textContent = trimLabel(text(away.name, "Visitantes"), 34);
-      document.getElementById("homeScore").textContent = Number(home.score || 0);
-      document.getElementById("awayScore").textContent = Number(away.score || 0);
-      document.getElementById("scoreLabel").textContent = viewMode === "open" ? "Classificacao" : "Resultado";
-
-      const homeLogoPath = home.logoUrl || DEFAULT_LOGO;
-      const awayLogoPath = away.logoUrl || DEFAULT_LOGO;
-      updateLogo(document.getElementById("homeLogo"), homeLogoPath);
-      updateLogo(document.getElementById("awayLogo"), awayLogoPath);
-      setTeamAccent("home", home.accentColor || "#f2f2f2");
-      setTeamAccent("away", away.accentColor || "#d3a11d");
-
-      renderTable("1", tables["1"], viewMode === "open");
-      renderTable("2", tables["2"], viewMode === "open");
-    }
-
-    async function refresh() {
-      try {
-        const response = await fetch("/api/state", { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        renderState(await response.json());
-      } catch {
-        lastSignature = "";
-      }
-    }
-
-    setLayout();
-    refresh();
-    setInterval(refresh, REFRESH_MS);
-  </script>
+setLayout();
+setupEditable();
+holes();
+window.addEventListener("load", () => { holes(); setupSponsors(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(holes);
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
 </body>
 </html>

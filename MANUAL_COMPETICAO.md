@@ -16,7 +16,7 @@ Pensado para utilização rápida por operadores durante um encontro.
 ---
 
 ## 2) Selecionar jogadores do Quadro 1
-1. Em **Classificação e Gestão de Quadros**, escolher 4 jogadores para **Locais** e 4 para **Visitantes**.
+1. Em **Classificação e Gestão de Quadros**, escolher 4 jogadores para **Visitado** e 4 para **Visitantes**.
 1. Verificar que não existem duplicados.
 
 ---
@@ -30,7 +30,7 @@ Pensado para utilização rápida por operadores durante um encontro.
 ## 4) Enviar jogos para as mesas
 1. Em cada linha do quadro, usar **Mesa 1** ou **Mesa 2** para enviar o jogo.
 1. O jogo aparece na mesa com os jogadores correspondentes.
-1. No fim da partida, clicar **Locais venceram** ou **Visitantes venceram**.
+1. No fim da partida, clicar **Visitado venceu** ou **Visitante venceu**.
 
 ---
 
