@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADSCR Bilhar - Marcador TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --felt: #0F3D2E;
+  --accent: #F2B705;
+  --cream: #F4EFE3;
+  --muted: rgba(244, 239, 227, .65);
+  --home-accent: #F4EFE3;
+  --away-accent: #F2B705;
+}
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0A2A20; }
+body { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; }
+body.idle, body.idle * { cursor: none !important; }
+.anton { font-family: 'Anton', Impact, sans-serif; }
+#stage {
+  position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px;
+  transform-origin: center center; box-sizing: border-box; padding: 40px 56px;
+  display: flex; flex-direction: column; gap: 28px;
+  background: radial-gradient(ellipse at 50% 40%, #1C5A40 0%, var(--felt) 70%);
+  color: var(--cream);
+}
+.lab { font-size: 24px; font-weight: 700; letter-spacing: 5px; color: var(--muted); }
+.card { background: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; }
+.card img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+header { height: 110px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 30px; }
+.competition-wrap { display: flex; align-items: center; gap: 22px; min-width: 0; }
+.competition-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#competitionTitle { font-size: 38px; line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#competitionSubtitle { font-size: 30px; font-weight: 600; color: rgba(244,239,227,.88); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#placar {
+  height: 480px; flex-shrink: 0; display: grid; grid-template-columns: 1fr 640px 1fr;
+  align-items: center; gap: 30px; padding: 0 10px; border-radius: 18px; background: rgba(0,0,0,.28);
+}
+.equipa { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; min-width: 0; }
+.nome { width: 100%; font-size: 58px; line-height: 1.02; text-transform: uppercase; min-height: 118px; display: flex; align-items: center; justify-content: center; overflow-wrap: anywhere; }
+.risco { width: 180px; height: 6px; }
+.num { width: 270px; height: 310px; border-radius: 16px; background: var(--accent); color: #13221B; display: flex; align-items: center; justify-content: center; font-size: 270px; line-height: 1; }
+#mesas { height: 150px; flex-shrink: 0; display: flex; gap: 28px; }
+.mesa { flex: 1; min-width: 0; border-radius: 14px; background: rgba(0,0,0,.32); padding: 14px 26px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.mesa .linha { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.mesa .jog { flex: 1; min-width: 0; font-size: 44px; line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mesa .mini { width: 70px; height: 72px; border-radius: 10px; background: rgba(244,239,227,.14); display: flex; align-items: center; justify-content: center; font-size: 52px; line-height: 1; flex-shrink: 0; }
+.mesa .livre { width: 100%; color: var(--muted); font-size: 36px; text-align: center; text-transform: uppercase; }
+#patro { height: 170px; flex-shrink: 0; box-sizing: border-box; padding: 14px 20px; border-radius: 14px; background: #fff; display: flex; align-items: stretch; gap: 16px; }
+.rot-slot { flex: 1; position: relative; min-width: 0; }
+.rot-slot img { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); max-width: 250px; object-fit: contain; opacity: 0; transition: opacity 1s; }
+.rot-slot img.on { opacity: 1; }
+.sep { width: 2px; align-self: center; height: 100px; background: #D9D4C7; flex-shrink: 0; }
+#ctrl { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: rgba(10,20,16,.94); color: #fff; font: 600 16px 'Barlow Condensed', sans-serif; transition: opacity .4s; box-shadow: 0 8px 24px rgba(0,0,0,.4); white-space: nowrap; }
+body.idle #ctrl { opacity: 0; pointer-events: none; }
+#ctrl button, #ctrl label.btn, #ctrl a { font: inherit; background: var(--accent); color: #13221B; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; text-decoration: none; }
+#ctrl .secondary { background: #E7E7E7; }
+#ctrl .info { width: 220px; overflow: hidden; text-overflow: ellipsis; opacity: .85; }
+#connection { width: auto !important; color: #86efac; }
+#connection.offline { color: #fca5a5; }
+#toast { position: absolute; left: 50%; top: 62px; transform: translateX(-50%); max-width: 700px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 10px 18px; border-radius: 10px; background: rgba(0,0,0,.55); font-size: 26px; font-weight: 600; opacity: 0; transition: opacity .6s; }
+#toast.on { opacity: 1; }
+#ajuda { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.7); }
+#ajuda.on { display: flex; }
+#ajuda > div { background: #fff; color: #13221B; border-radius: 14px; padding: 26px 34px; font: 500 20px/1.5 'Barlow Condensed', sans-serif; max-width: 720px; }
+</style>
+</head>
+<body>
+<div id="ctrl">
+  <a class="secondary" href="index.html" title="Voltar ao painel de controlo">← Painel</a>
+  <label class="btn">🎵 Escolher pasta<input id="pasta" type="file" webkitdirectory multiple accept="audio/*" hidden></label>
+  <button id="tocar" type="button" title="Tocar / pausa (tecla M)">⏯</button>
+  <button id="proxima" type="button" title="Próxima música (tecla N)">⏭</button>
+  <input id="vol" type="range" min="0" max="1" step="0.05" title="Volume" aria-label="Volume">
+  <span class="info" id="faixa">Sem música</span>
+  <span class="info" id="connection">● Em direto</span>
+  <button id="ecra" type="button" title="Ecrã inteiro (tecla F)">⛶</button>
+  <button id="btnajuda" type="button" title="Ajuda (tecla H)">?</button>
+</div>
+
+<main id="stage">
+  <header>
+    <div class="competition-wrap">
+      <div class="card" style="width:84px;height:108px;padding:5px"><img id="headerLogo" src="logo.png" alt="Logótipo da equipa da casa" style="width:74px;height:98px"></div>
+      <div class="competition-text">
+        <div class="anton" id="competitionTitle">ADSCR Bilhar</div>
+        <div id="competitionSubtitle">Marcador em direto</div>
+      </div>
+    </div>
+    <div class="card" style="gap:14px;padding:10px 18px">
+      <img src="assets/overlay/abc.jpg" alt="Associação de Bilhar de Coimbra" style="width:70px;height:70px">
+      <img src="assets/overlay/fpb.png" alt="Federação Portuguesa de Bilhar" style="width:190px;height:70px">
+    </div>
+  </header>
+
+  <section id="placar">
+    <div class="equipa">
+      <div class="lab">CASA</div>
+      <div class="card" style="width:150px;height:190px;padding:8px"><img id="homeLogo" src="logo.png" alt="Logótipo da equipa da casa" style="width:134px;height:174px"></div>
+      <div class="nome anton" id="homeName">Equipa da casa</div>
+      <div class="risco" style="background:var(--home-accent)"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px">
+      <div class="lab" id="scoreLabel">RESULTADO</div>
+      <div style="display:flex;align-items:center;gap:30px">
+        <div class="num anton" id="homeScore">0</div>
+        <div class="anton" style="font-size:90px;color:var(--muted)">-</div>
+        <div class="num anton" id="awayScore">0</div>
+      </div>
+    </div>
+    <div class="equipa">
+      <div class="lab">VISITANTE</div>
+      <div class="card" style="width:150px;height:190px;padding:8px"><img id="awayLogo" src="logo.png" alt="Logótipo da equipa visitante" style="width:134px;height:174px"></div>
+      <div class="nome anton" id="awayName">Equipa visitante</div>
+      <div class="risco" style="background:var(--away-accent)"></div>
+    </div>
+  </section>
+
+  <section id="mesas">
+    <div class="mesa" id="table1"><div class="lab" style="font-size:20px">MESA 1</div><div class="linha"></div></div>
+    <div class="mesa" id="table2"><div class="lab" style="font-size:20px">MESA 2</div><div class="linha"></div></div>
+  </section>
+
+  <section id="patro">
+    <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div><div class="sep"></div>
+    <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div><div class="sep"></div>
+    <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div><div class="sep"></div>
+    <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div><div class="sep"></div>
+    <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div><div class="sep"></div>
+    <div class="rot-slot"><img class="a" alt=""><img class="b" alt=""></div>
+  </section>
+  <div id="toast"></div>
+</main>
+
+<div id="ajuda" role="dialog" aria-modal="true" aria-label="Ajuda"><div>
+  <b>Marcador TV – como usar</b><br>
+  • <b>Dados do jogo:</b> são atualizados automaticamente a partir do painel de controlo.<br>
+  • <b>Música:</b> mexa o rato, escolha uma pasta com ficheiros de áudio e a reprodução começa no browser.<br>
+  • <b>Teclas:</b> F ecrã inteiro · M tocar/pausa · N próxima música · + / − volume · H ajuda.<br>
+  • <b>Na TV:</b> no Chrome, menu ⋮ › Transmitir… › escolha o Chromecast e, em “Origens”, “Transmitir separador”. O som também é transmitido.<br>
+  <i>(clique em qualquer sítio fora deste texto para fechar)</i>
+</div></div>
+
+<audio id="audio"></audio>
+<script src="assets/overlay/patrocinadores.js"></script>
+<script>
+const CONFIG = {
+  tempoNoEcra: 30,
+  alturaPorPeso: { 4: 130, 2: 108, 1: 88 },
+  musica: { volume: .5, aleatorio: true, mostrarTitulo: true }
+};
+const REFRESH_MS = 1500;
+const DEFAULT_LOGO = "logo.png";
+const STORAGE_PREFIX = "marcadorTV:";
+
+function stored(key) { try { return localStorage.getItem(STORAGE_PREFIX + key); } catch { return null; } }
+function store(key, value) { try { localStorage.setItem(STORAGE_PREFIX + key, String(value)); } catch {} }
+function text(value, fallback = "") { const result = String(value ?? "").trim(); return result || fallback; }
+
+function scaleStage() {
+  const scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+  document.getElementById("stage").style.transform = `translate(-50%,-50%) scale(${scale})`;
+}
+scaleStage();
+addEventListener("resize", scaleStage);
+
+function updateLogo(id, path) {
+  const image = document.getElementById(id);
+  const source = path || DEFAULT_LOGO;
+  if (image.dataset.src === source) return;
+  image.dataset.src = source;
+  image.onerror = () => { image.onerror = null; image.src = DEFAULT_LOGO; };
+  image.src = source;
+}
+
+function renderTable(id, table, isOpen) {
+  const root = document.getElementById(`table${id}`);
+  const line = root.querySelector(".linha");
+  const label = root.querySelector(".lab");
+  const hasGame = Boolean(table?.gameId);
+  const round = isOpen && hasGame ? text(table.round) : "";
+  label.textContent = round ? `MESA ${id} · ${round.toUpperCase()}` : `MESA ${id}`;
+  if (!hasGame) {
+    line.innerHTML = '<div class="livre anton">Mesa livre</div>';
+    return;
+  }
+  const home = document.createElement("div");
+  home.className = "jog anton";
+  home.textContent = text(table.playerHome, "Jogador 1");
+  const homeScore = document.createElement("div");
+  homeScore.className = "mini anton";
+  homeScore.textContent = Number(table.scoreHome || 0);
+  const separator = document.createElement("div");
+  separator.className = "anton";
+  separator.style.cssText = "font-size:36px;color:var(--muted)";
+  separator.textContent = "-";
+  const awayScore = document.createElement("div");
+  awayScore.className = "mini anton";
+  awayScore.textContent = Number(table.scoreAway || 0);
+  const away = document.createElement("div");
+  away.className = "jog anton";
+  away.style.textAlign = "right";
+  away.textContent = text(table.playerAway, "Jogador 2");
+  line.replaceChildren(home, homeScore, separator, awayScore, away);
+}
+
+let lastSignature = "";
+function renderState(state) {
+  const home = state.teams?.home || {};
+  const away = state.teams?.away || {};
+  const tables = state.tables || {};
+  const isOpen = state.viewMode === "open";
+  const info = isOpen
+    ? [state.openInfo?.title, state.openInfo?.subtitle].map(value => text(value)).filter(Boolean)
+    : (Array.isArray(state.matchInfo?.lines) ? state.matchInfo.lines : []).map(value => text(value)).filter(Boolean);
+  const signature = JSON.stringify([isOpen, home, away, tables["1"], tables["2"], info]);
+  if (signature === lastSignature) return;
+  lastSignature = signature;
+
+  document.getElementById("competitionTitle").textContent = info[0] || (isOpen ? "Open ADSCR" : "ADSCR Bilhar");
+  document.getElementById("competitionSubtitle").textContent = info.slice(1).join(" · ") || "Marcador em direto";
+  document.getElementById("homeName").textContent = text(home.name, isOpen ? "Jogador 1" : "Equipa da casa");
+  document.getElementById("awayName").textContent = text(away.name, isOpen ? "Jogador 2" : "Equipa visitante");
+  document.getElementById("homeScore").textContent = Number(home.score || 0);
+  document.getElementById("awayScore").textContent = Number(away.score || 0);
+  document.getElementById("scoreLabel").textContent = isOpen ? "CLASSIFICAÇÃO" : "RESULTADO";
+  document.documentElement.style.setProperty("--home-accent", home.accentColor || "#F4EFE3");
+  document.documentElement.style.setProperty("--away-accent", away.accentColor || "#F2B705");
+  updateLogo("headerLogo", home.logoUrl);
+  updateLogo("homeLogo", home.logoUrl);
+  updateLogo("awayLogo", away.logoUrl);
+  renderTable("1", tables["1"], isOpen);
+  renderTable("2", tables["2"], isOpen);
+}
+
+async function refresh() {
+  const status = document.getElementById("connection");
+  try {
+    const response = await fetch("/api/state", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    renderState(await response.json());
+    status.textContent = "● Em direto";
+    status.classList.remove("offline");
+  } catch {
+    status.textContent = "● Sem ligação";
+    status.classList.add("offline");
+  }
+}
+
+function setupSponsors() {
+  const sponsors = (window.PATROCINADORES || []).filter(sponsor => Number(sponsor.peso) > 0);
+  const slots = [...document.querySelectorAll(".rot-slot")];
+  if (!sponsors.length) return;
+  let bag = [];
+  function fill() {
+    bag = [];
+    sponsors.forEach(sponsor => { for (let i = 0; i < sponsor.peso; i++) bag.push(sponsor); });
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  }
+  function take() {
+    const visible = slots.map(slot => slot.dataset.id);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!bag.length) fill();
+      const index = bag.findIndex(sponsor => !visible.includes(sponsor.id));
+      if (index >= 0) return bag.splice(index, 1)[0];
+      fill();
+    }
+    return sponsors[Math.floor(Math.random() * sponsors.length)];
+  }
+  function show(slot) {
+    const sponsor = take();
+    const current = slot.querySelector("img.on");
+    const next = current?.classList.contains("a") ? slot.querySelector("img.b") : slot.querySelector("img.a");
+    next.src = sponsor.src;
+    next.alt = sponsor.nome;
+    next.style.maxHeight = `${CONFIG.alturaPorPeso[sponsor.peso] || 110}px`;
+    slot.dataset.id = sponsor.id;
+    next.classList.add("on");
+    current?.classList.remove("on");
+  }
+  slots.forEach(show);
+  let position = 0;
+  setInterval(() => { show(slots[position]); position = (position + 1) % slots.length; }, CONFIG.tempoNoEcra * 1000 / slots.length);
+}
+
+function setupMusic() {
+  const audio = document.getElementById("audio");
+  const trackLabel = document.getElementById("faixa");
+  const toast = document.getElementById("toast");
+  const volume = document.getElementById("vol");
+  let tracks = [];
+  let position = 0;
+  let objectUrl = "";
+  const savedVolume = Number.parseFloat(stored("volume"));
+  audio.volume = Number.isFinite(savedVolume) ? savedVolume : CONFIG.musica.volume;
+  volume.value = audio.volume;
+  volume.addEventListener("input", () => { audio.volume = Number(volume.value); store("volume", volume.value); });
+  function trackName(file) { return file.name.replace(/\.[^.]+$/, "").replace(/_+/g, " "); }
+  function shuffle(list) {
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+  }
+  function play(index) {
+    if (!tracks.length) return;
+    position = (index + tracks.length) % tracks.length;
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = URL.createObjectURL(tracks[position]);
+    audio.src = objectUrl;
+    audio.play().catch(() => {});
+    const name = trackName(tracks[position]);
+    trackLabel.textContent = `♪ ${name}`;
+    if (CONFIG.musica.mostrarTitulo) {
+      toast.textContent = `♪ ${name}`;
+      toast.classList.add("on");
+      setTimeout(() => toast.classList.remove("on"), 5000);
+    }
+  }
+  function next() {
+    if (position + 1 >= tracks.length && CONFIG.musica.aleatorio) shuffle(tracks);
+    play(position + 1);
+  }
+  function toggle() {
+    if (!tracks.length) return;
+    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+  }
+  document.getElementById("pasta").addEventListener("change", event => {
+    tracks = [...event.target.files].filter(file => /^audio\//.test(file.type) || /\.(mp3|m4a|ogg|wav|flac|aac)$/i.test(file.name));
+    if (CONFIG.musica.aleatorio) shuffle(tracks);
+    trackLabel.textContent = tracks.length ? `${tracks.length} músicas` : "Sem músicas nesta pasta";
+    play(0);
+  });
+  document.getElementById("tocar").addEventListener("click", toggle);
+  document.getElementById("proxima").addEventListener("click", next);
+  audio.addEventListener("ended", next);
+  audio.addEventListener("error", () => { if (tracks.length) next(); });
+  return { audio, volume, toggle, next };
+}
+
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+
+const music = setupMusic();
+const help = document.getElementById("ajuda");
+document.getElementById("ecra").addEventListener("click", toggleFullscreen);
+document.getElementById("btnajuda").addEventListener("click", () => help.classList.add("on"));
+help.addEventListener("click", event => { if (event.target === help) help.classList.remove("on"); });
+document.addEventListener("keydown", event => {
+  const key = event.key.toLowerCase();
+  if (key === "f") toggleFullscreen();
+  else if (key === "m") music.toggle();
+  else if (key === "n") music.next();
+  else if (key === "h") help.classList.toggle("on");
+  else if (key === "+" || key === "=") { music.audio.volume = Math.min(1, music.audio.volume + .05); music.volume.value = music.audio.volume; store("volume", music.audio.volume); }
+  else if (key === "-") { music.audio.volume = Math.max(0, music.audio.volume - .05); music.volume.value = music.audio.volume; store("volume", music.audio.volume); }
+});
+
+let idleTimer;
+function wake() {
+  document.body.classList.remove("idle");
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => document.body.classList.add("idle"), 3000);
+}
+["mousemove", "mousedown", "keydown", "touchstart"].forEach(name => addEventListener(name, wake));
+wake();
+setupSponsors();
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>

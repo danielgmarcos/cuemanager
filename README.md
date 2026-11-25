@@ -59,6 +59,7 @@ Layouts disponíveis:
 - `overlay_mesa1.html` -> Mesa 1 fixa
 - `overlay_mesa2.html` -> Mesa 2 fixa
 - `overlay.html?layout=scoreboard` -> só marcador
+- `marcador-tv.html` -> marcador de ecrã inteiro para TV/Chromecast, sincronizado com o painel, com música local e patrocinadores rotativos
 - `overlay_zoom_duas_mesas.html` / `overlay_zoom_mesa1.html` / `overlay_zoom_mesa2.html` -> estilo **zoom** (`&estilo=zoom`): equipas e resultado na barra de cima, patrocinadores por baixo das mesas, nomes dos jogadores por cima da câmara e câmaras de 900x840 (mais zoom nas mesas)
 - `ecra_comeca.html` -> ecrã "A transmissão começa em breve"
 - `ecra_fim.html` -> ecrã "Obrigado por nos acompanhar" (com resultado final)
