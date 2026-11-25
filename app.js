@@ -121,6 +121,7 @@ function applyState(newState) {
   $("awayScore").textContent = state.teams.away.score || 0;
   updateQuadroTeamHeader();
 
+  renderOpenInfo();
   renderPlayers();
   populatePlayerDropdowns();
   renderQuadroSelectors();
@@ -225,7 +226,6 @@ function setupTeamNameMirroring() {
 // -----------------------------------------------------------------------------
 function setupViewModeToggle() {
   const toggle = $("modeToggle");
-  const openCompetitionSearch = $("openCompetitionSearch");
 
   // carregar jogadores Open do localStorage
   const savedOpen = localStorage.getItem("openPlayers");
@@ -237,9 +237,6 @@ function setupViewModeToggle() {
     }
   }
 
-  if (openCompetitionSearch) {
-    openCompetitionSearch.value = localStorage.getItem(OPEN_COMPETITION_KEY) || "";
-  }
 
   toggle.addEventListener("change", () => {
     viewMode = toggle.checked ? "open" : "teams";
@@ -247,11 +244,48 @@ function setupViewModeToggle() {
     applyViewMode();
     syncViewModeToServer();
     populatePlayerDropdowns();
+    renderTables();
   });
 
   renderOpenPlayers();
   setupOpenModeCollapse();
   setupOpenPortalImport();
+  $("openInfoSaveBtn")?.addEventListener("click", () => saveOpenInfo());
+}
+
+// Informação do Open mostrada nos overlays + nº de jogos para ganhar
+function getRaceTo() {
+  const n = Number.parseInt(state?.openInfo?.raceTo, 10);
+  return Number.isFinite(n) && n > 0 ? n : 5;
+}
+
+function renderOpenInfo() {
+  const info = state?.openInfo || {};
+  if ($("openInfoTitle")) $("openInfoTitle").value = info.title || "";
+  if ($("openInfoSubtitle")) $("openInfoSubtitle").value = info.subtitle || "";
+  if ($("openInfoRaceTo")) $("openInfoRaceTo").value = getRaceTo();
+}
+
+async function saveOpenInfo(patch = null, silent = false) {
+  const body = patch || {
+    title: $("openInfoTitle")?.value || "",
+    subtitle: $("openInfoSubtitle")?.value || "",
+    raceTo: $("openInfoRaceTo")?.value || 5
+  };
+  try {
+    const res = await fetch("/api/open-info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error();
+    state.openInfo = await res.json();
+    renderOpenInfo();
+    renderTables();
+    if (!silent) showToast("Informação do Open guardada.", "success");
+  } catch {
+    if (!silent) showToast("Não foi possível guardar a informação do Open.", "danger");
+  }
 }
 
 function applyViewMode() {
@@ -338,11 +372,12 @@ function renderOpenPlayers() {
   $("openPlayersInput").value = openPlayers.join("\n");
 }
 
-async function loadOpenCompetitions() {
-  const search = $("openCompetitionSearch");
-  const datalist = $("openCompetitionDatalist");
-  if (!search || !datalist) return;
+// --- PortalBilhar: provas individuais (região -> prova -> fase/ronda/local) ---
+let openBoard = null; // último quadro carregado do portal
 
+async function loadOpenCompetitions() {
+  const regionSel = $("openRegionSelect");
+  if (!regionSel) return;
   try {
     const res = await fetch("/api/portal/open-competitions");
     const data = await res.json();
@@ -350,49 +385,98 @@ async function loadOpenCompetitions() {
     openCompetitions = Array.isArray(data) ? data : [];
   } catch {
     openCompetitions = [];
-    datalist.innerHTML = "";
-    return;
   }
 
-  datalist.innerHTML = "";
-  openCompetitions.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = c.name;
-    opt.dataset.id = c.id;
-    datalist.appendChild(opt);
-  });
+  const regions = [...new Set(openCompetitions.map(c => c.region).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "pt"));
+  regionSel.innerHTML = '<option value="">— região —</option>';
+  regions.forEach(r => regionSel.add(new Option(r, r)));
+
+  const saved = localStorage.getItem(OPEN_COMPETITION_KEY) || "";
+  const savedComp = openCompetitions.find(c => c.id === saved || c.name === saved);
+  if (savedComp) regionSel.value = savedComp.region;
+  renderOpenCompetitionOptions(savedComp?.id);
 }
 
-function resolveOpenCompetitionSelection() {
-  const search = $("openCompetitionSearch");
-  const value = search?.value?.trim() || "";
-  if (!value) return null;
-  return openCompetitions.find(c => c.name === value) || null;
+function renderOpenCompetitionOptions(selectedId = "") {
+  const regionSel = $("openRegionSelect");
+  const compSel = $("openCompetitionSelect");
+  if (!regionSel || !compSel) return;
+  const region = regionSel.value;
+  compSel.innerHTML = '<option value="">— escolher prova —</option>';
+  openCompetitions
+    .filter(c => !region || c.region === region)
+    .forEach(c => compSel.add(new Option(c.name.replace(/^PPT\s*-\s*/i, ""), c.id)));
+  if (selectedId) compSel.value = selectedId;
 }
 
 function setupOpenPortalImport() {
-  const search = $("openCompetitionSearch");
-  const button = $("loadOpenPortalBtn");
-  if (!search || !button) return;
-  if (!search.dataset.listenerAttached) {
-    search.addEventListener("change", () => {
-      localStorage.setItem(OPEN_COMPETITION_KEY, search.value.trim());
-    });
-    search.addEventListener("input", () => {
-      localStorage.setItem(OPEN_COMPETITION_KEY, search.value.trim());
-    });
-    search.dataset.listenerAttached = "1";
-  }
-  if (!button.dataset.listenerAttached) {
-    button.addEventListener("click", importOpenCompetitionFromPortal);
-    button.dataset.listenerAttached = "1";
-  }
+  const regionSel = $("openRegionSelect");
+  const compSel = $("openCompetitionSelect");
+  const loadBtn = $("loadOpenPortalBtn");
+  const importBtn = $("importOpenPortalBtn");
+  if (!regionSel || !compSel || !loadBtn || loadBtn.dataset.listenerAttached) return;
+  loadBtn.dataset.listenerAttached = "1";
+
+  regionSel.addEventListener("change", () => {
+    renderOpenCompetitionOptions();
+    hideOpenPortalFilters();
+  });
+  compSel.addEventListener("change", () => {
+    localStorage.setItem(OPEN_COMPETITION_KEY, compSel.value);
+    hideOpenPortalFilters();
+  });
+  loadBtn.addEventListener("click", loadOpenBoardFromPortal);
+  importBtn?.addEventListener("click", importOpenBoardToQueue);
+  ["openFaseSelect", "openRoundSelect", "openLocationSelect", "openPendingOnly"].forEach(id => {
+    $(id)?.addEventListener("change", updateOpenPortalSummary);
+  });
 }
 
-async function importOpenCompetitionFromPortal() {
-  const selected = resolveOpenCompetitionSelection();
+function hideOpenPortalFilters() {
+  openBoard = null;
+  $("openPortalFilters")?.classList.add("d-none");
+}
+
+function fillFilterSelect(id, values, allLabel) {
+  const sel = $(id);
+  if (!sel) return;
+  sel.innerHTML = "";
+  sel.add(new Option(allLabel, ""));
+  values.forEach(v => sel.add(new Option(v, v)));
+  sel.disabled = values.length <= 1;
+}
+
+function isPortalMatchPlayed(m) {
+  return (m.portalScoreHome || 0) > 0 || (m.portalScoreAway || 0) > 0;
+}
+
+function getFilteredOpenMatches() {
+  if (!openBoard) return [];
+  const fase = $("openFaseSelect")?.value || "";
+  const round = $("openRoundSelect")?.value || "";
+  const location = $("openLocationSelect")?.value || "";
+  const pendingOnly = !!$("openPendingOnly")?.checked;
+  return openBoard.matches.filter(m =>
+    (!fase || m.fase === fase) &&
+    (!round || m.round === round) &&
+    (!location || m.location === location) &&
+    (!pendingOnly || !isPortalMatchPlayed(m))
+  );
+}
+
+function updateOpenPortalSummary() {
+  const el = $("openPortalSummary");
+  if (!el || !openBoard) return;
+  const n = getFilteredOpenMatches().length;
+  el.textContent = `${n} jogo(s) selecionado(s) de ${openBoard.matches.length} · ${openBoard.players.length} jogadores na prova.`;
+}
+
+async function loadOpenBoardFromPortal() {
+  const compSel = $("openCompetitionSelect");
+  const selected = openCompetitions.find(c => c.id === compSel?.value);
   if (!selected) {
-    showToast("Escolhe uma competição válida da lista do PortalBilhar.", "warning");
+    showToast("Escolhe a região e a prova do PortalBilhar.", "warning");
     return;
   }
 
@@ -406,40 +490,65 @@ async function importOpenCompetitionFromPortal() {
   try {
     const res = await fetch(`/api/portal/open-board?comp=${encodeURIComponent(selected.id)}`);
     const data = await res.json();
-    if (!res.ok || data?.error) throw new Error(data?.error || "Falha ao importar quadro.");
-
-    const importedPlayers = Array.isArray(data.players) ? data.players.filter(Boolean) : [];
-    const importedMatches = Array.isArray(data.matches) ? data.matches : [];
-
-    openPlayers = importedPlayers;
-    localStorage.setItem("openPlayers", JSON.stringify(openPlayers));
-    localStorage.setItem(OPEN_COMPETITION_KEY, data?.competition?.name || selected.name);
-
-    state.queue = importedMatches.map((match, index) => ({
-      id: state.nextGameId + index,
-      gameNumber: Number.isFinite(match.gameNumber) ? match.gameNumber : index + 1,
-      playerHome: match.playerHome,
-      playerAway: match.playerAway
-    }));
-    state.nextGameId += importedMatches.length;
-
-    renderOpenPlayers();
-    populatePlayerDropdowns();
-    renderQueue();
-    await saveQueue();
-
-    const search = $("openCompetitionSearch");
-    if (search) search.value = data?.competition?.name || selected.name;
-
-    showToast(`Quadro Open importado: ${importedMatches.length} jogos e ${importedPlayers.length} jogadores.`, "success");
-  } catch (err) {
-    showToast("Não foi possível importar do PortalBilhar. O preenchimento manual continua disponível.", "warning");
+    if (!res.ok || data?.error) throw new Error(data?.error || "Falha ao carregar jogos.");
+    openBoard = {
+      competition: data.competition || selected,
+      matches: Array.isArray(data.matches) ? data.matches : [],
+      players: Array.isArray(data.players) ? data.players.filter(Boolean) : []
+    };
+    fillFilterSelect("openFaseSelect", data.fases || [], "Todas as fases");
+    fillFilterSelect("openRoundSelect", data.rounds || [], "Todas as rondas");
+    fillFilterSelect("openLocationSelect", data.locations || [], "Todos os locais");
+    // se houver um local que pareça a Valada, pré-seleciona-o
+    const loc = $("openLocationSelect");
+    const valada = (data.locations || []).find(l => /valada|adscr|atadoa/i.test(l));
+    if (loc && valada) loc.value = valada;
+    $("openPortalFilters")?.classList.remove("d-none");
+    updateOpenPortalSummary();
+    if (!openBoard.matches.length) showToast("Esta prova ainda não tem jogos no PortalBilhar.", "warning");
+  } catch {
+    hideOpenPortalFilters();
+    showToast("Não foi possível carregar do PortalBilhar. O preenchimento manual continua disponível.", "warning");
   } finally {
     if (button) {
       button.disabled = false;
       button.textContent = originalLabel;
     }
   }
+}
+
+async function importOpenBoardToQueue() {
+  if (!openBoard) return;
+  const selectedMatches = getFilteredOpenMatches();
+
+  openPlayers = [...openBoard.players];
+  localStorage.setItem("openPlayers", JSON.stringify(openPlayers));
+  localStorage.setItem(OPEN_COMPETITION_KEY, openBoard.competition.id);
+
+  state.queue = selectedMatches.map((match, index) => ({
+    id: state.nextGameId + index,
+    gameNumber: Number.isFinite(match.gameNumber) ? match.gameNumber : index + 1,
+    playerHome: match.playerHome,
+    playerAway: match.playerAway,
+    round: match.round || null,
+    location: match.location || null,
+    scheduledAt: match.scheduledAt || null
+  }));
+  state.nextGameId += selectedMatches.length;
+
+  // Informação do Open para os overlays: título da prova + "1.ª Prova · Ronda"
+  const round = $("openRoundSelect")?.value || "";
+  const comp = openBoard.competition;
+  await saveOpenInfo({
+    title: comp.title || comp.name,
+    subtitle: [comp.subtitle, round].filter(Boolean).join(" · ")
+  }, true);
+
+  renderOpenPlayers();
+  populatePlayerDropdowns();
+  renderQueue();
+  await saveQueue();
+  showToast(`Importados ${selectedMatches.length} jogos e ${openPlayers.length} jogadores.`, "success");
 }
 
 function setupOpenModeCollapse() {
@@ -1930,7 +2039,10 @@ function renderQueue() {
       : "";
 
     div.innerHTML = `
-      <span><strong>${label}</strong> — ${g.playerHome} vs ${g.playerAway}</span>
+      <span><strong>${label}</strong> — ${g.playerHome} vs ${g.playerAway}${(() => {
+        const extra = [g.round, g.location, g.scheduledAt?.split(" ")[1]].filter(Boolean).join(" · ");
+        return extra ? `<br><small class="text-muted">${extra}</small>` : "";
+      })()}</span>
       <div class="d-flex gap-1">
         <button class="btn btn-sm btn-outline-primary" onclick="sendGameToTable(${idx}, 1, true)">Mesa 1</button>
         <button class="btn btn-sm btn-outline-primary" onclick="sendGameToTable(${idx}, 2, true)">Mesa 2</button>
@@ -2019,6 +2131,7 @@ function sendGameToTable(idx, tableId, manual = true) {
     playerAway: game.playerAway,
     quadroId: game.quadroId ?? null,
     quadroIndex: game.quadroIndex ?? null,
+    round: game.round ?? null,
     scoreHome: 0,
     scoreAway: 0,
     history: []
@@ -2050,8 +2163,22 @@ function updateTableUI(tableId) {
     gameDiv.classList.remove("text-muted");
     scoreDiv.textContent = `${t.scoreHome} - ${t.scoreAway}`;
   }
+  updateTableButtonLabels(tableId, t);
   updateQuadroRowActions();
   updateQuadroButtonsStatus();
+}
+
+// No modo Open os botões mostram o nome dos jogadores (em vez de Local/Visitante)
+function updateTableButtonLabels(tableId, t) {
+  const isOpen = viewMode === "open" && t?.gameId;
+  const home = isOpen ? (t.playerHome || "Jogador 1") : null;
+  const away = isOpen ? (t.playerAway || "Jogador 2") : null;
+  const plus = document.querySelectorAll(`#table${tableId}ScoreControls button.btn-primary`);
+  if (plus[0]) plus[0].textContent = isOpen ? `+ ${home}` : "+ Local";
+  if (plus[1]) plus[1].textContent = isOpen ? `+ ${away}` : "+ Visitante";
+  const finish = document.querySelectorAll(`#table${tableId}Finish button`);
+  if (finish[0]) finish[0].textContent = isOpen ? `${home} venceu` : "Visitado venceu";
+  if (finish[1]) finish[1].textContent = isOpen ? `${away} venceu` : "Visitante venceu";
 }
 
 async function saveTable(tableId) {
@@ -2122,9 +2249,19 @@ function addPoint(tableId, side) {
     t.scoreHome = side === "home" ? 1 : 0;
     t.scoreAway = side === "away" ? 1 : 0;
   } else {
+    const raceTo = getRaceTo();
+    if (t.scoreHome >= raceTo || t.scoreAway >= raceTo) {
+      showToast(`O jogo já terminou (jogos a ${raceTo}). Confirma o vencedor.`, "warning");
+      return;
+    }
     t.history.push({ scoreHome: t.scoreHome, scoreAway: t.scoreAway });
     if (side === "home") t.scoreHome++;
     else t.scoreAway++;
+    const reached = side === "home" ? t.scoreHome : t.scoreAway;
+    if (reached >= raceTo) {
+      const name = side === "home" ? t.playerHome : t.playerAway;
+      showToast(`${name} chegou aos ${raceTo}. Carrega em "${name} venceu" para fechar o jogo.`, "success");
+    }
   }
 
   updateTableUI(tableId);
@@ -2172,6 +2309,15 @@ function undoPoint(tableId) {
 async function finishGame(tableId, winnerSide) {
   const t = state.tables[tableId];
   if (!t || !t.gameId) return;
+
+  if (viewMode === "open") {
+    const win = winnerSide === "home" ? t.scoreHome : t.scoreAway;
+    const lose = winnerSide === "home" ? t.scoreAway : t.scoreHome;
+    if (win <= lose || win < getRaceTo()) {
+      const name = winnerSide === "home" ? t.playerHome : t.playerAway;
+      if (!confirm(`O resultado está ${t.scoreHome} - ${t.scoreAway}. Confirmas que ${name} venceu?`)) return;
+    }
+  }
 
   const prevHome = state.teams.home.score;
   const prevAway = state.teams.away.score;

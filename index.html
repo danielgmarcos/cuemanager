@@ -834,24 +834,70 @@
         </div>
 
         <div class="open-mode-body">
-          <div class="border rounded p-3 bg-light mb-3">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-              <h6 class="fw-bold m-0">Importar do PortalBilhar</h6>
-              <button class="btn btn-outline-primary btn-sm" id="loadOpenPortalBtn" type="button">Carregar quadro do PortalBilhar</button>
+          <div class="border rounded p-3 bg-light mb-3" id="openPortalBlock">
+            <h6 class="fw-bold mb-2">Importar do PortalBilhar (provas individuais)</h6>
+            <p class="text-muted small mb-2">
+              Escolhe a região e a prova, carrega os jogos e filtra por fase, ronda e local.
+              Os jogos filtrados vão para a fila; todos os jogadores da prova ficam disponíveis para jogos manuais.
+              Se o portal falhar, o preenchimento manual continua disponível abaixo.
+            </p>
+            <div class="row g-2 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold" for="openRegionSelect">Região</label>
+                <select id="openRegionSelect" class="form-select"><option value="">— região —</option></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold" for="openCompetitionSelect">Prova</label>
+                <select id="openCompetitionSelect" class="form-select"><option value="">— escolher prova —</option></select>
+              </div>
+              <div class="col-md-3 d-grid">
+                <button class="btn btn-outline-primary" id="loadOpenPortalBtn" type="button">Carregar jogos</button>
+              </div>
             </div>
 
-            <p class="text-muted small mb-2">
-              Pesquisa pela competição e importa os jogos do quadro individual. Se o portal falhar, o preenchimento manual continua disponível abaixo.
-            </p>
+            <div class="row g-2 align-items-end mt-1 d-none" id="openPortalFilters">
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold" for="openFaseSelect">Fase</label>
+                <select id="openFaseSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold" for="openRoundSelect">Ronda</label>
+                <select id="openRoundSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold" for="openLocationSelect">Local</label>
+                <select id="openLocationSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-3">
+                <div class="form-check mb-1">
+                  <input class="form-check-input" type="checkbox" id="openPendingOnly" checked>
+                  <label class="form-check-label small" for="openPendingOnly">Só jogos por jogar</label>
+                </div>
+                <button class="btn btn-primary w-100" id="importOpenPortalBtn" type="button">Importar para a fila</button>
+              </div>
+              <div class="col-12 small text-muted" id="openPortalSummary"></div>
+            </div>
+          </div>
 
-            <input
-              id="openCompetitionSearch"
-              class="form-control"
-              list="openCompetitionDatalist"
-              placeholder="Pesquisar competição Open..."
-              autocomplete="off"
-            />
-            <datalist id="openCompetitionDatalist"></datalist>
+          <div class="border rounded p-3 mb-3" id="openInfoBlock">
+            <h6 class="fw-bold mb-2">Informação do Open (aparece na transmissão)</h6>
+            <div class="row g-2 align-items-end">
+              <div class="col-md-5">
+                <label class="form-label small fw-semibold" for="openInfoTitle">Título</label>
+                <input id="openInfoTitle" class="form-control" placeholder="ex.: Open Distrital de Coimbra" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-semibold" for="openInfoSubtitle">Jornada / detalhe</label>
+                <input id="openInfoSubtitle" class="form-control" placeholder="ex.: 3.ª Jornada" />
+              </div>
+              <div class="col-md-1">
+                <label class="form-label small fw-semibold" for="openInfoRaceTo">Jogos a</label>
+                <input id="openInfoRaceTo" class="form-control" type="number" min="1" max="99" value="5" />
+              </div>
+              <div class="col-md-2 d-grid">
+                <button class="btn btn-primary" id="openInfoSaveBtn" type="button">Guardar</button>
+              </div>
+            </div>
           </div>
 
           <p class="text-muted small">

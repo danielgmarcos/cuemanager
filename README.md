@@ -38,8 +38,11 @@ Para detalhes do modo competição, ver `MANUAL_COMPETICAO.md`.
 - As mesas só aceitam resultado por **vitória** (1-0 ou 0-1).
 
 ### Open
-- Lista livre de jogadores (um por linha).
-- Fila com jogadores de qualquer lado.
+- Jogos individuais isolados (sem quadros), ganha quem chegar primeiro a N jogos ("Jogos a", 5 por omissão; o painel não deixa passar de N).
+- **Importar do PortalBilhar (provas individuais)**: escolher **Região** → **Prova** → *Carregar jogos*; filtrar por **Fase**, **Ronda** (Ronda Inicial, Vencedores 1, Perdedores 1, …), **Local** e "só jogos por jogar"; *Importar para a fila*. Todos os jogadores da prova ficam disponíveis para jogos manuais.
+- Ou lista livre de jogadores (um por linha) e jogos criados à mão na fila.
+- **Informação do Open** (título, jornada/detalhe, jogos a N): aparece nos overlays e nos ecrãs de início/fim; é preenchida automaticamente ao importar do portal.
+- Overlays em modo Open (mesmos URLs, incluindo os `zoom`): logótipo da ADSCR Valada-Atadoa-Atadoinha, informação do Open, "Jogos a N", resultado e ronda de cada mesa, histórico com resultados.
 
 ## Histórico
 O “Histórico” mostra os jogos concluídos por quadro e permite **alterar o resultado** (sem apagar).
@@ -56,6 +59,7 @@ Layouts disponíveis:
 - `overlay_mesa1.html` -> Mesa 1 fixa
 - `overlay_mesa2.html` -> Mesa 2 fixa
 - `overlay.html?layout=scoreboard` -> só marcador
+- `overlay_zoom_duas_mesas.html` / `overlay_zoom_mesa1.html` / `overlay_zoom_mesa2.html` -> estilo **zoom** (`&estilo=zoom`): equipas e resultado na barra de cima, patrocinadores por baixo das mesas, nomes dos jogadores por cima da câmara e câmaras de 900x840 (mais zoom nas mesas)
 - `ecra_comeca.html` -> ecrã "A transmissão começa em breve"
 - `ecra_fim.html` -> ecrã "Obrigado por nos acompanhar" (com resultado final)
 

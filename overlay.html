@@ -105,10 +105,92 @@
   .history-name.loss { color: #FF6B6B; }
   .history-empty { font-size: 22px; font-weight: 600; color: var(--ink-soft); text-align: center; padding-top: 20px; }
 
-  /* modo Open: sem equipas nem resultado de equipas */
+  /* modo Open: sem equipas nem resultado de equipas; mostra local (Valada) e "jogos a N" */
   .mode-open .team, .mode-open .result { display: none; }
   .mode-open .centre { justify-content: flex-start; gap: 40px; }
   .mode-open .federation { margin-top: auto; }
+  .open-venue, .open-race { display: none; }
+  .mode-open .open-venue { display: flex; width: 200px; height: 200px; box-sizing: border-box; padding: 10px; border-radius: 10px; background: #FFFFFF; align-items: center; justify-content: center; flex-shrink: 0; }
+  .open-venue img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .mode-open .open-race { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .mode-open .table-mid.score { font-size: 40px; }
+  .history-score { display: none; font-family: 'Anton', Impact, sans-serif; font-size: 22px; color: var(--gold); text-align: center; white-space: nowrap; }
+  .history-head .history-score { font-family: inherit; font-size: 15px; color: var(--ink-soft); }
+  .mode-open .history-score { display: block; }
+  .mode-open .history-head, .mode-open .history-row { grid-template-columns: 52px 1fr 70px 1fr; }
+
+  /* --- estilo ZOOM (?estilo=zoom): câmaras largas (900x840, margens de 40px) ---
+     barra superior: competição | visitado | resultado | visitante | federação
+     câmaras: nomes dos jogadores por cima da imagem (como no layout normal)
+     barra inferior: uma faixa única de patrocinadores */
+  .skin-zoom .centre, .skin-zoom .head { display: contents; }
+  .skin-zoom .side, .skin-zoom .cam, .skin-zoom .history,
+  .skin-zoom .team, .skin-zoom .result, .skin-zoom .live,
+  .skin-zoom .competition, .skin-zoom .federation { position: absolute; }
+
+  .skin-zoom .cam { top: 118px; width: 900px; height: 840px; }
+  .skin-zoom #cam1 { left: 40px; }
+  .skin-zoom #cam2 { left: 980px; }
+  .skin-zoom .history { top: 118px; width: 900px; height: 840px; padding: 0; }
+  .skin-zoom.table-1 .history { left: 980px; }
+  .skin-zoom.table-2 .history { left: 40px; }
+  .skin-zoom .table-bar { left: 50%; right: auto; bottom: 10px; transform: translateX(-50%); width: 460px; padding: 5px 12px 7px; gap: 3px; }
+  .skin-zoom .table-title { font-size: 12px; }
+  .skin-zoom .player-name { font-size: 22px; }
+  .skin-zoom .table-mid { font-size: 15px; padding-bottom: 4px; }
+  .skin-zoom .table-mid.score { font-size: 24px; }
+  .skin-zoom .table-idle { font-size: 20px; }
+
+  /* patrocinadores: uma só faixa por baixo das mesas (as duas colunas juntas, 6 logótipos) */
+  .skin-zoom .side { top: 968px; width: 920px; height: 100px; padding: 0; }
+  .skin-zoom #sideL { left: 40px; }
+  .skin-zoom #sideR { left: 960px; }
+  .skin-zoom #sideL .side-box { border-radius: 8px 0 0 8px; }
+  .skin-zoom #sideR .side-box { border-radius: 0 8px 8px 0; }
+  .skin-zoom #sideR .side-box::before { content: ""; width: 2px; height: 70%; background: #D9D4C7; flex-shrink: 0; }
+  .skin-zoom .side-box { flex-direction: row; padding: 8px 14px; }
+  .skin-zoom .side-sep { width: 2px; height: 70%; }
+  .skin-zoom .rot-slot { height: 100%; }
+  .skin-zoom .rot-slot img { max-width: 260px; }
+
+  .skin-zoom .live { display: none; }
+  .skin-zoom .competition { top: 59px; left: 40px; width: 300px; transform: translateY(-50%); font-size: 22px; line-height: 1.2; text-align: left; border-left: 4px solid var(--gold); padding-left: 12px; box-sizing: border-box; }
+  .skin-zoom .competition:empty { border-left-color: transparent; min-height: 60px; }
+  .skin-zoom .competition::first-line { font-size: 27px; font-weight: 800; color: var(--ink); text-transform: uppercase; }
+  .skin-zoom .federation { top: 24px; right: 40px; }
+
+  .skin-zoom .team {
+    top: 10px; width: 500px; height: 98px; display: grid; column-gap: 14px; row-gap: 4px;
+    grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; align-content: center; text-align: left;
+    grid-template-areas: "logo label" "logo name" "logo line";
+  }
+  .skin-zoom .team.home { left: 356px; }
+  .skin-zoom .team.away {
+    right: 256px; grid-template-columns: 1fr auto; text-align: right; justify-items: end;
+    grid-template-areas: "label logo" "name logo" "line logo";
+  }
+  .skin-zoom .team-label { grid-area: label; font-size: 14px; }
+  .skin-zoom .team-logo-box { grid-area: logo; width: 68px; height: 88px; }
+  .skin-zoom .team-logo-box img { width: 60px; height: 80px; }
+  .skin-zoom .team-name { grid-area: name; font-size: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .skin-zoom .team-line { grid-area: line; width: 120px; }
+
+  .skin-zoom .result { top: 8px; left: 50%; transform: translateX(-50%); gap: 4px; }
+  .skin-zoom .result-label { font-size: 14px; }
+  .skin-zoom .result-pill { width: 66px; height: 78px; font-size: 64px; }
+
+  /* Open no estilo zoom: logótipo do local + info do Open à esquerda, "jogos a N" ao centro */
+  .skin-zoom.mode-open .federation { margin-top: 0; }
+  .skin-zoom.mode-open .team, .skin-zoom.mode-open .result { display: none; }
+  .mode-open .table-row { align-items: center; }
+  .mode-open .table-mid.score { padding: 0 6px; }
+  .skin-zoom .open-venue, .skin-zoom .open-race { position: absolute; }
+  .skin-zoom.mode-open .open-venue { top: 10px; left: 40px; width: 98px; height: 98px; padding: 6px; border-radius: 8px; }
+  .skin-zoom.mode-open .competition { left: 154px; width: 560px; }
+  .skin-zoom.mode-open .open-race { top: 8px; left: 50%; transform: translateX(-50%); gap: 4px; }
+  .skin-zoom.mode-open .table-bar { width: 560px; }
+  .skin-zoom.mode-open .player-name { font-size: 26px; }
+  .skin-zoom.mode-open .table-mid.score { font-size: 34px; }
 
   /* pré-visualização fora do OBS */
   html.preview body { background: #1A1F1C; }
@@ -142,6 +224,10 @@
       <div class="live"><span></span>AO VIVO</div>
       <div class="competition" data-k="competicao" contenteditable="true" spellcheck="false" data-multi></div>
     </div>
+
+    <!-- modo Open: local da transmissão + nº de jogos para ganhar -->
+    <div class="open-venue"><img src="logo.png" alt="ADSCR Valada-Atadoa-Atadoinha"></div>
+    <div class="open-race"><div class="result-label">JOGOS A</div><div class="result-pill" id="raceTo">5</div></div>
 
     <div class="team home">
       <div class="team-label">VISITADO</div>
@@ -183,7 +269,7 @@
   <div class="history" id="historyPanel">
     <div class="history-box">
       <div class="history-title">JOGOS</div>
-      <div class="history-head"><div>Nº</div><div>VISITADO</div><div class="away">VISITANTE</div></div>
+      <div class="history-head"><div>Nº</div><div id="historyHomeHead">VISITADO</div><div class="history-score">RES.</div><div class="away" id="historyAwayHead">VISITANTE</div></div>
       <div class="history-list" id="historyList"></div>
     </div>
   </div>
@@ -255,6 +341,7 @@ function trimLabel(value, maxLength) {
 }
 
 // --- layout: ?layout=tables | single (&table=1|2) | scoreboard ---------------
+//     &estilo=zoom -> câmaras maiores, info nas barras de cima e de baixo
 function setLayout() {
   const params = new URLSearchParams(window.location.search);
   let layout = (params.get("layout") || "tables").toLowerCase();
@@ -265,6 +352,7 @@ function setLayout() {
 
   document.body.classList.remove("layout-tables", "layout-single", "layout-scoreboard", "table-1", "table-2");
   document.body.classList.add(`layout-${layout}`, `table-${table}`);
+  document.body.classList.toggle("skin-zoom", (params.get("estilo") || "").toLowerCase() === "zoom");
 
   document.getElementById("cam1").classList.toggle("hidden", layout === "single" && table !== "1");
   document.getElementById("cam2").classList.toggle("hidden", layout === "single" && table !== "2");
@@ -337,6 +425,11 @@ function setTeamAccent(side, color) {
 function renderTable(tableId, table, isOpenMode) {
   const row = document.getElementById(`table${tableId}Row`);
   const hasGame = Boolean(table && table.gameId);
+  const title = row.parentElement.querySelector(".table-title");
+  if (title) {
+    const round = hasGame && isOpenMode ? String(table.round || "").trim() : "";
+    title.textContent = round ? `MESA ${tableId} · ${round.toUpperCase()}` : `MESA ${tableId}`;
+  }
 
   if (!hasGame) {
     row.innerHTML = '<div class="table-idle">Mesa livre</div>';
@@ -380,6 +473,7 @@ function renderHistory(history) {
     return `<div class="history-row">
       <div class="history-num">${g.order}</div>
       <div class="history-name ${homeCls}">${home}</div>
+      <div class="history-score">${Number(g.scoreHome || 0)} - ${Number(g.scoreAway || 0)}</div>
       <div class="history-name away ${awayCls}">${away}</div>
     </div>`;
   }).join("");
@@ -397,6 +491,7 @@ function renderState(state) {
     table1: tables["1"],
     table2: tables["2"],
     matchInfo: state.matchInfo?.lines || null,
+    openInfo: state.openInfo || null,
     history: (state.history || []).map(g => [g.id, g.winnerSide, g.playerHome, g.playerAway, g.gameNumber])
   });
 
@@ -422,7 +517,15 @@ function renderState(state) {
 
   renderHistory(state.history || []);
 
-  const lines = Array.isArray(state.matchInfo?.lines) ? state.matchInfo.lines : [];
+  const openInfo = state.openInfo || {};
+  document.getElementById("raceTo").textContent = Number(openInfo.raceTo) || 5;
+  document.getElementById("historyHomeHead").textContent = viewMode === "open" ? "JOGADOR" : "VISITADO";
+  document.getElementById("historyAwayHead").textContent = viewMode === "open" ? "JOGADOR" : "VISITANTE";
+
+  // Competição: no Open vem da informação do Open (painel), senão do PortalBilhar
+  const lines = viewMode === "open"
+    ? [openInfo.title, openInfo.subtitle].map(s => String(s || "").trim()).filter(Boolean)
+    : (Array.isArray(state.matchInfo?.lines) ? state.matchInfo.lines : []);
   portalCompetitionHtml = lines.length ? lines.map(escapeHtml).join("<br>") : null;
   renderCompetition();
 }

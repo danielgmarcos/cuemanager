@@ -19,6 +19,12 @@
   },
   "viewMode": "teams",
   "competitionId": null,
+  "matchInfo": null,
+  "openInfo": {
+    "title": "",
+    "subtitle": "",
+    "raceTo": 5
+  },
   "quadroSelections": {
     "home": [
       "",

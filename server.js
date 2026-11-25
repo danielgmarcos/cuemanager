@@ -56,11 +56,23 @@ function normalizeTeam(team, side) {
   };
 }
 
+// Modo Open: informação mostrada nos overlays (título, jornada) e nº de jogos para ganhar
+function normalizeOpenInfo(info) {
+  const current = info || {};
+  const raceTo = Number.parseInt(current.raceTo, 10);
+  return {
+    title: String(current.title ?? "").trim(),
+    subtitle: String(current.subtitle ?? "").trim(),
+    raceTo: Number.isFinite(raceTo) && raceTo > 0 ? raceTo : 5
+  };
+}
+
 function normalizeStateShape(state) {
   const current = state || {};
   current.teams ||= {};
   current.teams.home = normalizeTeam(current.teams.home, "home");
   current.teams.away = normalizeTeam(current.teams.away, "away");
+  current.openInfo = normalizeOpenInfo(current.openInfo);
   return current;
 }
 
@@ -75,6 +87,7 @@ function initState() {
     viewMode: "teams",
     competitionId: null,
     matchInfo: null,
+    openInfo: normalizeOpenInfo(),
     quadroSelections: {
       home: ["", "", "", ""],
       away: ["", "", "", ""]
@@ -250,12 +263,34 @@ function isPortalPlaceholder(value) {
   return !value || /seleccione|escolher/i.test(value);
 }
 
-function parseOpenBoardRows($) {
+// "PPT - 1.ª Prova do Circuito Distrital - Coimbra - 1.ª Divisão"
+//   -> { region: "Coimbra", title: "Circuito Distrital de Coimbra - 1.ª Divisão", subtitle: "1.ª Prova" }
+function splitOpenCompetitionName(name) {
+  const parts = normalizePortalText(name).replace(/^PPT\s*-\s*/i, "").split(/\s+-\s+/);
+  const head = parts[0] || "";
+  const prova = (head.match(/^(.*?Prova)\b/i) || [])[1] || "";
+  const circuit = normalizePortalText(head.replace(/^.*?Prova\s+do\s+/i, "")) || head;
+  const isDistrital = /distrital/i.test(head) && parts.length >= 3;
+  const region = isDistrital ? parts[1] : "Nacional";
+  const division = isDistrital ? parts.slice(2).join(" - ") : parts.slice(1).join(" - ");
+  const title = [isDistrital ? `${circuit} de ${region}` : circuit, division].filter(Boolean).join(" - ");
+  return { region, title, subtitle: prova };
+}
+
+function parseOpenBoardRows($, fase = null) {
   const matches = [];
 
-  // Layout atual do portal: cartões div.fpb-match-card dentro de #tbl_Resultados
-  $("#tbl_Resultados .fpb-match-card").each((_, card) => {
-    const $card = $(card);
+  // Layout atual do portal: dentro de #tbl_Resultados, cabeçalhos de ronda
+  // (div.fpb-round-header: "Ronda Inicial", "Vencedores 1", "Perdedores 1", ...)
+  // seguidos dos cartões dos jogos (div.fpb-match-card)
+  let round = null;
+  $("#tbl_Resultados").children().each((_, el) => {
+    const $card = $(el);
+    if ($card.hasClass("fpb-round-header")) {
+      round = normalizePortalText($card.text()) || null;
+      return;
+    }
+    if (!$card.hasClass("fpb-match-card")) return;
     const meta = $card.find(".fpb-match-meta span");
     const scheduledAt = normalizePortalText($card.find(".fpb-match-date").text() || $(meta[0]).text());
     const location = normalizePortalText(meta.length > 1 ? $(meta[meta.length - 1]).text() : "");
@@ -270,6 +305,8 @@ function parseOpenBoardRows($) {
 
     matches.push({
       gameNumber: gameNumberMatch ? Number.parseInt(gameNumberMatch[1], 10) : null,
+      fase,
+      round,
       playerHome,
       playerAway,
       resultText,
@@ -299,6 +336,8 @@ function parseOpenBoardRows($) {
 
     matches.push({
       gameNumber: gameNumberMatch ? Number.parseInt(gameNumberMatch[1], 10) : null,
+      fase,
+      round: null,
       playerHome,
       playerAway,
       resultText,
@@ -364,7 +403,7 @@ app.get("/api/portal/open-competitions", async (req, res) => {
       const id = normalizePortalText($(el).attr("value"));
       const name = normalizePortalText($(el).text());
       if (!id || isPortalPlaceholder(name)) return;
-      competitions.push({ id, name });
+      competitions.push({ id, name, ...splitOpenCompetitionName(name) });
     });
 
     res.json(competitions);
@@ -388,14 +427,33 @@ app.get("/api/portal/open-board", async (req, res) => {
     const $ = cheerio.load(response.data);
     const selected = $("select[id$='dd_competicao'] option:selected").first();
     const competitionName = normalizePortalText(selected.text()) || comp;
-    const matches = parseOpenBoardRows($);
-    const players = [...new Set(matches.flatMap(match => [match.playerHome, match.playerAway]))];
+
+    // Percorre todas as fases (dd_fase) – cada uma tem as suas rondas
+    const fases = readSelect($, "dd_fase");
+    let matches = [];
+    if (fases.options.length > 1) {
+      for (const fase of fases.options) {
+        const $f = fases.selected && fase.value === fases.selected.value
+          ? $
+          : await portalPostback(url, $, $("#dd_fase").attr("name"), fase.value);
+        matches.push(...parseOpenBoardRows($f, fase.label));
+      }
+    } else {
+      matches = parseOpenBoardRows($, fases.selected?.label || null);
+    }
+
+    const uniq = list => [...new Set(list.filter(Boolean))];
+    const players = uniq(matches.flatMap(match => [match.playerHome, match.playerAway]));
 
     res.json({
       competition: {
         id: comp,
-        name: competitionName
+        name: competitionName,
+        ...splitOpenCompetitionName(competitionName)
       },
+      fases: uniq(matches.map(m => m.fase)),
+      rounds: uniq(matches.map(m => m.round)),
+      locations: uniq(matches.map(m => m.location)).sort((a, b) => a.localeCompare(b, "pt")),
       players,
       matches
     });
@@ -405,9 +463,6 @@ app.get("/api/portal/open-board", async (req, res) => {
   }
 });
 
-
-
-// List teams for a given competition (Pool Português)
 app.get("/api/portal/teams", async (req, res) => {
   const comp = req.query.comp;
   if (!comp) {
@@ -808,6 +863,13 @@ app.post("/api/view-mode", (req, res) => {
   res.json({ viewMode: state.viewMode });
 });
 
+app.post("/api/open-info", (req, res) => {
+  const state = loadState();
+  state.openInfo = normalizeOpenInfo({ ...state.openInfo, ...req.body });
+  saveState(state);
+  res.json(state.openInfo);
+});
+
 // Set teams (home & away) – we persist whatever object the frontend sends
 app.post("/api/set-teams", async (req, res) => {
   const state = loadState();
@@ -878,7 +940,8 @@ app.post("/api/table/set", (req, res) => {
     scoreAway: game.scoreAway || 0,
     history: game.history || [],
     quadroId: game.quadroId ?? null,
-    quadroIndex: game.quadroIndex ?? null
+    quadroIndex: game.quadroIndex ?? null,
+    round: game.round ?? null
   };
   saveState(state);
   res.json(state.tables[tableId]);
@@ -950,6 +1013,7 @@ app.post("/api/table/finish", (req, res) => {
     winnerSide,
     quadroId: table.quadroId ?? null,
     quadroIndex: table.quadroIndex ?? null,
+    round: table.round ?? null,
     finishedAt: new Date().toISOString()
   };
 
